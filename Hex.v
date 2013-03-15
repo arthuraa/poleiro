@@ -85,9 +85,7 @@ Proof. reflexivity. Qed.
     fixpoint, since we wouldn't be calling the function recursively on
     a subterm of the original argument. *)
 
-Open Scope string_scope.
-
-Definition natToDigit (n : nat) : string :=
+Definition natToDigit (n : nat) : ascii :=
   match n with
     | 0 => "0"
     | 1 => "1"
@@ -104,24 +102,33 @@ Definition natToDigit (n : nat) : string :=
 Require Import Coq.Numbers.Natural.Peano.NPeano.
 Require Import Omega.
 
-Fixpoint writeNatAux (n time : nat) : string :=
+Open Scope string_scope.
+
+Fixpoint writeNatAux (time n : nat) (acc : string) : string :=
   match time with
-    | 0 => "0"
+    | 0 => acc
     | S time' =>
+      let acc' := String (natToDigit (n mod 10)) acc in
       match n / 10 with
-        | 0 => natToDigit (n mod 10)
-        | n' => writeNatAux n' time' ++ natToDigit (n mod 10)
+        | 0 => acc'
+        | n' => writeNatAux time' n' acc'
       end
   end.
 
 Definition writeNat (n : nat) : string :=
-  writeNatAux n n.
+  match n with
+    | 0 => "0"
+    | _ => writeNatAux n n ""
+  end.
 
 Example writeNat1 : writeNat 12 = "12".
 Proof. reflexivity. Qed.
 
-Example writeNat2 : writeNat 0 = "0".
+Example writeNat2 : writeNat 1 = "1".
 Proof. reflexivity. Qed.
+
+Arguments div !x !y.
+Arguments modulo x y : simpl never.
 
 Theorem readNatAuxApp : forall s1 s2 n m,
   readNatAux s1 n = Some m ->
@@ -134,11 +141,9 @@ Proof.
     inversion H; eauto.
 Qed.
 
-Arguments div !x !y.
-Arguments modulo x y : simpl never.
-
 Theorem readNatAuxNatToDigit : forall (n m : nat),
-  n < 10 -> readNatAux (natToDigit n) m = Some (10 * m + n).
+  n < 10 ->
+  readNatAux (String (natToDigit n) "") m = Some (10 * m + n).
 Proof.
   intros n m H.
   repeat match goal with
@@ -147,20 +152,41 @@ Proof.
          end.
 Qed.
 
-Theorem readNatWriteNatAux :
+Theorem writeNatAuxApp :
+  forall time n acc1 acc2,
+    writeNatAux time n (acc1 ++ acc2) =
+    writeNatAux time n acc1 ++ acc2.
+Proof.
+  induction time as [|time' IH]; intros n acc1 acc2. reflexivity.
+  simpl.
+  destruct (n / 10) as [|n']. reflexivity.
+  rewrite <- IH. reflexivity.
+Qed.
+
+Theorem writeNatAuxEmptyString :
+  forall time n acc,
+    writeNatAux time n acc =
+    writeNatAux time n "" ++ acc.
+Proof.
+  intros time n acc. rewrite <- writeNatAuxApp.
+  reflexivity.
+Qed.
+
+Theorem readNatAuxWriteNatAux :
   forall time n,
     n <= time ->
-    readNat (writeNatAux n time) = Some n.
+    readNatAux (writeNatAux time n "") 0 =
+    Some n.
 Proof.
   induction time as [|time' IHtime]; intros n H.
   - compute. f_equal. omega.
-  - simpl. unfold readNat.
+  - simpl.
     destruct (n / 10) as [|n'] eqn:En10.
     + { rewrite readNatAuxNatToDigit;
         try apply Nat.mod_upper_bound; try omega.
         rewrite <- En10 at 2.
         rewrite <- div_mod; try omega; trivial. }
-    + { unfold readNat.
+    + { rewrite writeNatAuxEmptyString.
         erewrite readNatAuxApp; try eapply IHtime.
         + rewrite readNatAuxNatToDigit.
           { rewrite <- En10.
@@ -174,7 +200,7 @@ Qed.
 Theorem readNatWriteNat :
   forall n, readNat (writeNat n) = Some n.
 Proof.
-  intros n.
-  unfold writeNat.
-  rewrite readNatWriteNatAux; trivial.
+  intros [|n]. reflexivity.
+  unfold writeNat, readNat.
+  rewrite readNatAuxWriteNatAux; trivial.
 Qed.
