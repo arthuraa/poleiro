@@ -123,19 +123,58 @@ Proof. reflexivity. Qed.
 Example writeNat2 : writeNat 0 = "0".
 Proof. reflexivity. Qed.
 
-Theorem readNatNatToDigit : forall (n : nat),
-  n < 10 -> readNat (natToDigit n) = Some n.
+Theorem readNatAuxApp : forall s1 s2 n m,
+  readNatAux s1 n = Some m ->
+  readNatAux (s1 ++ s2) n = readNatAux s2 m.
 Proof.
-  intros n H.
-  do 10 match goal with
-          | n : nat |- _ =>
-            destruct n; [reflexivity|]
-        end.
-  omega.
+  induction s1 as [|c s1 IHs1]; intros s2 n m H.
+  - inversion H. reflexivity.
+  - simpl in *.
+    destruct (digitToNat c) as [n'|];
+    inversion H; eauto.
 Qed.
 
-Fixpoint pow (n m : nat) : nat :=
-  match n with
-    | 0 => 1
-    | S n' => m * pow n' m
-  end.
+Arguments div !x !y.
+Arguments modulo x y : simpl never.
+
+Theorem readNatAuxNatToDigit : forall (n m : nat),
+  n < 10 -> readNatAux (natToDigit n) m = Some (10 * m + n).
+Proof.
+  intros n m H.
+  repeat match goal with
+          | n : nat |- _ =>
+            destruct n; [reflexivity|try omega]
+         end.
+Qed.
+
+Theorem readNatWriteNatAux :
+  forall time n,
+    n <= time ->
+    readNat (writeNatAux n time) = Some n.
+Proof.
+  induction time as [|time' IHtime]; intros n H.
+  - compute. f_equal. omega.
+  - simpl. unfold readNat.
+    destruct (n / 10) as [|n'] eqn:En10.
+    + { rewrite readNatAuxNatToDigit;
+        try apply Nat.mod_upper_bound; try omega.
+        rewrite <- En10 at 2.
+        rewrite <- div_mod; try omega; trivial. }
+    + { unfold readNat.
+        erewrite readNatAuxApp; try eapply IHtime.
+        + rewrite readNatAuxNatToDigit.
+          { rewrite <- En10.
+            rewrite <- div_mod; try omega; trivial. }
+          apply Nat.mod_upper_bound; omega.
+        + assert (n / 10 < n); try omega.
+          apply Nat.div_lt; try omega.
+          destruct n; simpl in *; try omega. }
+Qed.
+
+Theorem readNatWriteNat :
+  forall n, readNat (writeNat n) = Some n.
+Proof.
+  intros n.
+  unfold writeNat.
+  rewrite readNatWriteNatAux; trivial.
+Qed.
