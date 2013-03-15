@@ -1,0 +1,2 @@
+* Read hex numbers
+* Prop vs. bool
