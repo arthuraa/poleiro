@@ -141,11 +141,11 @@ Proof.
     inversion H; eauto.
 Qed.
 
-Theorem readNatAuxNatToDigit : forall (n m : nat),
+Theorem digitToNatNatToDigit : forall n : nat,
   n < 10 ->
-  readNatAux (String (natToDigit n) "") m = Some (10 * m + n).
+  digitToNat (natToDigit n) = Some n.
 Proof.
-  intros n m H.
+  intros n H.
   repeat match goal with
           | n : nat |- _ =>
             destruct n; [reflexivity|try omega]
@@ -180,17 +180,17 @@ Theorem readNatAuxWriteNatAux :
 Proof.
   induction time as [|time' IHtime]; intros n H.
   - compute. f_equal. omega.
-  - simpl.
+  - rewrite (div_mod n 10) at 2; try omega.
+    cbv delta [writeNatAux] iota beta zeta.
     destruct (n / 10) as [|n'] eqn:En10.
-    + { rewrite readNatAuxNatToDigit;
+    + { cbv delta [readNatAux] iota beta.
+        rewrite digitToNatNatToDigit;
         try apply Nat.mod_upper_bound; try omega.
-        rewrite <- En10 at 2.
-        rewrite <- div_mod; try omega; trivial. }
+        trivial. }
     + { rewrite writeNatAuxEmptyString.
         erewrite readNatAuxApp; try eapply IHtime.
-        + rewrite readNatAuxNatToDigit.
-          { rewrite <- En10.
-            rewrite <- div_mod; try omega; trivial. }
+        + cbv delta [readNatAux] iota beta.
+          rewrite digitToNatNatToDigit. trivial.
           apply Nat.mod_upper_bound; omega.
         + assert (n / 10 < n); try omega.
           apply Nat.div_lt; try omega.
