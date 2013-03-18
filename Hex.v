@@ -83,8 +83,9 @@ Example readNat2 : readNat "asdf" = None.
 Proof. reflexivity. Qed.
 
 (** Since we have a function for reading numbers, we should now be
-    able to write one for printing them. As a first step, let's write
-    a function that converts [nat]s to their corresponding digits. *)
+    able to write one for printing them. Again, as a first step, let's
+    write a function that converts [nat]s to their corresponding
+    digits. *)
 
 Definition natToDigit (n : nat) : ascii :=
   match n with
@@ -100,10 +101,42 @@ Definition natToDigit (n : nat) : ascii :=
     | _ => "9"
   end.
 
-(** One might think that we should make this function return an
-    [option ascii] instead of a plain [ascii], just like we did in our
-    previous digitToNat function. After all, it doesn't make any sense
-    to associate any digit to, say, 10. *)
+(** In all rigor, [natToDigit] should return an [option ascii] instead
+    of a plain [ascii], just like we did in our previous digitToNat
+    function. After all, it doesn't make any sense to associate any
+    digit to, say, 10. However, if we make sure that we only use this
+    function on numbers less than 10, we don't have to do an explicit
+    conversion from [option ascii] to [ascii] later on, and our
+    function will still be correct. As a matter of fact, we can now
+    prove a theorem that tells us when it's safe to use [natToDigit]. *)
+
+Theorem digitToNatNatToDigit : forall n : nat,
+  n < 10 ->
+  digitToNat (natToDigit n) = Some n.
+Proof.
+  intros n H.
+
+  (* H ensures that we only have to check the cases from n = 0 to
+     9. We can do this very easily by using a "repeat match" where we
+     do a case analysis on n until the H hypothesis becomes
+     contradictory. *)
+
+  repeat match goal with
+          | n : nat |- _ =>
+            destruct n; [reflexivity|try omega]
+         end.
+
+Qed.
+
+(** In particular, we get the following consequence: *)
+
+Theorem digitToNatNatToDigitMod : forall n : nat,
+  digitToNat (natToDigit (n mod 10)) = Some (n mod 10).
+Proof.
+  intros n. apply digitToNatNatToDigit.
+  apply Nat.mod_upper_bound.
+  congruence.
+Qed.
 
 (** The natural approach would be to divide the number by 10, print it
     recursively, and then append the remainder of that division at the
@@ -135,23 +168,6 @@ Proof. reflexivity. Qed.
 Example writeNat2 : writeNat 0 = "0".
 Proof. reflexivity. Qed.
 
-Theorem digitToNatNatToDigit : forall n : nat,
-  n < 10 ->
-  digitToNat (natToDigit n) = Some n.
-Proof.
-  intros n H.
-  repeat match goal with
-          | n : nat |- _ =>
-            destruct n; [reflexivity|try omega]
-         end.
-Qed.
-
-Theorem digitToNatNatToDigitMod : forall n : nat,
-  digitToNat (natToDigit (n mod 10)) = Some (n mod 10).
-Proof.
-  intros n. apply digitToNatNatToDigit. apply Nat.mod_upper_bound.
-  congruence.
-Qed.
 
 Lemma div_10_le : forall n m,
   n <= S m -> n / 10 <= m.
