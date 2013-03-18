@@ -1,5 +1,7 @@
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
+Require Import Coq.Numbers.Natural.Peano.NPeano.
+Require Import Omega.
 
 (** Many programming languages have built-in support for string
     processing. Coq is no exception. The standard library provides us
@@ -78,12 +80,8 @@ Example readNat2 : readNat "asdf" = None.
 Proof. reflexivity. Qed.
 
 (** Since we have a function for reading numbers, we should now write
-    one for printing them. How could we proceed? The natural approach
-    would be to divide the number by 10, print it recursively, and
-    then append the remainder of that division at the
-    end. Unfortunately, we can't translate this idea directly as a Coq
-    fixpoint, since we wouldn't be calling the function recursively on
-    a subterm of the original argument. *)
+    one for printing them. Let's start by writing a function that
+    converts nats to digits. *)
 
 Definition natToDigit (n : nat) : ascii :=
   match n with
@@ -99,8 +97,18 @@ Definition natToDigit (n : nat) : ascii :=
     | _ => "9"
   end.
 
-Require Import Coq.Numbers.Natural.Peano.NPeano.
-Require Import Omega.
+(** One might think that we should make this function return an option
+    ascii instead of a plain ascii, just like we did in our previous
+    digitToNat function. After all, it doesn't make any sense to
+    associate any digit to, say, 10. *)
+
+(** The natural approach would be to divide the number by 10, print it
+    recursively, and then append the remainder of that division at the
+    end.
+
+    Unfortunately, we can't translate this idea directly as a Coq
+    fixpoint, since we wouldn't be calling the function recursively on
+    a subterm of the original argument. There are several tricks *)
 
 Open Scope string_scope.
 
