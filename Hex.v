@@ -124,20 +124,6 @@ Proof. reflexivity. Qed.
 Example writeNat2 : writeNat 0 = "0".
 Proof. reflexivity. Qed.
 
-Arguments div !x !y.
-Arguments modulo x y : simpl never.
-
-Theorem readNatAuxApp : forall s1 s2 n m,
-  readNatAux s1 n = Some m ->
-  readNatAux (s1 ++ s2) n = readNatAux s2 m.
-Proof.
-  induction s1 as [|c s1 IHs1]; intros s2 n m H.
-  - inversion H. reflexivity.
-  - simpl in *.
-    destruct (digitToNat c) as [n'|];
-    inversion H; eauto.
-Qed.
-
 Theorem digitToNatNatToDigit : forall n : nat,
   n < 10 ->
   digitToNat (natToDigit n) = Some n.
@@ -156,24 +142,12 @@ Proof.
   congruence.
 Qed.
 
-Theorem readNatAuxWriteNatAuxZ :
-  forall time s,
-    readNatAux (writeNatAux time 0 s) 0 =
-    readNatAux s 0.
+Lemma div_10_le : forall n m,
+  n <= S m -> n / 10 <= m.
 Proof.
-  induction time as [|time' IH];
-  intros s; simpl; reflexivity.
-Qed.
-
-Theorem readNatAuxWriteNatAuxReduce :
-  forall time n acc,
-    readNatAux (writeNatAux (S time) n acc) 0 =
-    readNatAux (writeNatAux time (n / 10)
-                                 (String (natToDigit (n mod 10)) acc)) 0.
-Proof.
-  intros time n acc. simpl.
-  destruct (n / 10); trivial.
-  rewrite readNatAuxWriteNatAuxZ. trivial.
+  intros [|n] m H. simpl. omega.
+  assert (S n / 10 < S n); try omega.
+  apply Nat.div_lt; omega.
 Qed.
 
 Theorem readNatAuxWriteNatAux :
@@ -184,15 +158,14 @@ Theorem readNatAuxWriteNatAux :
 Proof.
   induction time as [|time' IHtime]; intros n acc H.
   - simpl. inversion H. reflexivity.
-  - destruct n as [|n'] eqn: En. reflexivity.
-    rewrite readNatAuxWriteNatAuxReduce.
-    rewrite IHtime.
-    + cbv delta [readNatAux] iota beta.
-      rewrite digitToNatNatToDigitMod.
-      rewrite <- div_mod; try omega.
-      reflexivity.
-    + assert (n / 10 < n); subst; try omega.
-      apply Nat.div_lt; try omega.
+  - apply div_10_le in H.
+    unfold writeNatAux.
+    destruct (n / 10) as [|n'] eqn:En';
+    [|rewrite IHtime; auto];
+    unfold readNatAux;
+    try rewrite digitToNatNatToDigitMod;
+    try erewrite (div_mod n 10) at 2; try omega;
+    try congruence.
 Qed.
 
 Theorem readNatWriteNat :
