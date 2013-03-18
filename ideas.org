@@ -1,3 +1,6 @@
+* Read and write numbers, prove it correct
 * Read hex numbers
 * Prop vs. bool
 * Write a function to "compute" the type of a term.
+* Type-safe printf
+* Formalize the IO monad in Coq and extract it.
