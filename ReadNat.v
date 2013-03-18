@@ -19,7 +19,7 @@ Print string.
 Print ascii.
 
 (** Sure enough, if we had to use constructors explicitly for building
-    [string]s, using them in Coq wouldn't be much
+    [string]s, using them in Coq wouldn't be very
     practical. Fortunately, Coq provides a convenient notation for
     [string]s and [ascii], much like the built-in notation for
     numbers. They are defined in [string_scope] and [char_scope],
