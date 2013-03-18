@@ -1,2 +1,3 @@
 * Read hex numbers
 * Prop vs. bool
+* Write a function to "compute" the type of a term.
