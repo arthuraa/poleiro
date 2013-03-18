@@ -11,18 +11,18 @@ Require Import Omega.
 
 Print string.
 
-(** As we can see, strings are much like the list type, but contain
-    ascii elements. *)
+(** As we can see, [string]s are much like the [list] type, but
+    contain [ascii] elements instead of an arbitrary type. *)
 
 Print ascii.
 
-(** asciis, on the other hand, are just eightuples of bools.
+(** [ascii]s, on the other hand, are just eightuples of [bool]s.
 
     Sure enough, if we had to use constructors explicitly for building
-    strings, using them in Coq wouldn't be much
+    [string]s, using them in Coq wouldn't be much
     practical. Fortunately, Coq provides a convenient notation for
-    strings and ascii, much like the built-in notation for
-    numbers. They are defined in string_scope and char_scope,
+    [string]s and [ascii], much like the built-in notation for
+    numbers. They are defined in [string_scope] and [char_scope],
     respectively. *)
 
 Open Scope string_scope.
@@ -37,10 +37,12 @@ Check "1".
 
 (** Let's see what kind of string-processing functions we can
     write. One could certainly hope that we'd be able to write a
-    function to read numbers. First, we'll write a function to convert
-    from asciis to nat. Since not every character corresponds to a
-    digit, our function will be partial -- i.e., the result will be an
-    option nat. *)
+    function to read numbers. To do this, we will need a function to
+    convert [ascii]s to [nat]s: if the character is a digit, we return
+    the corresponding number. Otherwise, the whole parsing should
+    fail. As in other functional programming languages, we model this
+    by making our function return an [option] instead -- in this case,
+    [option nat]. *)
 
 Definition digitToNat (c : ascii) : option nat :=
   match c with
@@ -57,8 +59,9 @@ Definition digitToNat (c : ascii) : option nat :=
     | _   => None
   end.
 
-(** We can now use this function to read numbers. The easiest way is
-    probably to do it tail recursively: *)
+(** We can now use this function to read numbers. To make it more
+    efficient, we can add an [acc] parameter to store the intermediate
+    results of the computation -- i.e., the number we've read so far. *)
 
 Fixpoint readNatAux (s : string) (acc : nat) : option nat :=
   match s with
@@ -79,9 +82,9 @@ Proof. reflexivity. Qed.
 Example readNat2 : readNat "asdf" = None.
 Proof. reflexivity. Qed.
 
-(** Since we have a function for reading numbers, we should now write
-    one for printing them. Let's start by writing a function that
-    converts nats to digits. *)
+(** Since we have a function for reading numbers, we should now be
+    able to write one for printing them. As a first step, let's write
+    a function that converts [nat]s to their corresponding digits. *)
 
 Definition natToDigit (n : nat) : ascii :=
   match n with
@@ -97,10 +100,10 @@ Definition natToDigit (n : nat) : ascii :=
     | _ => "9"
   end.
 
-(** One might think that we should make this function return an option
-    ascii instead of a plain ascii, just like we did in our previous
-    digitToNat function. After all, it doesn't make any sense to
-    associate any digit to, say, 10. *)
+(** One might think that we should make this function return an
+    [option ascii] instead of a plain [ascii], just like we did in our
+    previous digitToNat function. After all, it doesn't make any sense
+    to associate any digit to, say, 10. *)
 
 (** The natural approach would be to divide the number by 10, print it
     recursively, and then append the remainder of that division at the
