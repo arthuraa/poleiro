@@ -1,3 +1,5 @@
+(** * Reading and writing numbers in Coq *)
+
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import Coq.Numbers.Natural.Peano.NPeano.
