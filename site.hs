@@ -11,6 +11,9 @@ coqdoc = do
   output <- unsafeCompiler $
             readProcess "coqdoc" [ "--no-index"
                                  , "--stdout"
+                                 , "--body-only"
+                                 , "--parse-comments"
+                                 , "-s"
                                  , inputFile ] ""
   makeItem output
 
@@ -23,7 +26,8 @@ main = hakyll $ do
 
     match "posts/*.v" $ do
         route $ setExtension "html"
-        compile coqdoc
+        compile $ coqdoc
+          >>= loadAndApplyTemplate "templates/post.html" defaultContext
 
     match "index.html" $ do
         route idRoute
