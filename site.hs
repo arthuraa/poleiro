@@ -38,7 +38,7 @@ main = hakyll $ do
 
             getResourceBody
                 >>= applyAsTemplate indexCtx
-                >>= loadAndApplyTemplate "templates/default.html" postCtx
+                >>= loadAndApplyTemplate "templates/post.html" postCtx
                 >>= relativizeUrls
 
     match "templates/*" $ compile templateCompiler
