@@ -2,22 +2,57 @@
 {-# LANGUAGE OverloadedStrings #-}
 import           Control.Applicative ((<$>))
 import           Data.Monoid         (mappend)
+import qualified Data.Map            as M
 import           Hakyll
 import           System.Process
+import           Text.Parsec
+import           Text.Parsec.String
 
-coqdoc :: Compiler (Item String)
+data Post = Post { postTitle :: String
+                 , postDate :: String
+                 , postBody :: Item String }
+
+-- Looks for comments that are hidden in the beginning of Coq source
+-- code and tries to find metadata there
+getCoqMetadata :: String -> M.Map String String
+getCoqMetadata contents =
+  let binding = do
+        string "(*"
+        spaces
+        key <- many1 letter
+        char ':'
+        spaces
+        value <- manyTill anyChar (try $ spaces >> string "*)")
+        spaces
+        return (key, value)
+
+      metadata = do
+        string "(* begin hide *)"
+        spaces
+        bindings <- manyTill binding (try $ string "(* end hide *)")
+        return $ foldl (\m (k,v) -> M.insert k v m) M.empty bindings in
+  case parse metadata "" contents of
+    Right metadata -> metadata
+    Left _ -> M.empty
+
+coqdoc :: Compiler Post
 coqdoc = do
-  inputFile <- toFilePath <$> getUnderlying
+  inputFileName <- toFilePath <$> getUnderlying
+  fileContents <- itemBody <$> getResourceBody
+  let metadata = getCoqMetadata fileContents
+      title = M.findWithDefault inputFileName "title" metadata
+      date = M.findWithDefault "No date" "date" metadata
   unsafeCompiler $
-    readProcess "coqc" [ inputFile ] ""
-  output <- unsafeCompiler $
-            readProcess "coqdoc" [ "--no-index"
-                                 , "--stdout"
-                                 , "--body-only"
-                                 , "--parse-comments"
-                                 , "-s"
-                                 , inputFile ] ""
-  makeItem output
+    readProcess "coqc" [ inputFileName ] ""
+  body <- unsafeCompiler $
+          readProcess "coqdoc" [ "--no-index"
+                               , "--stdout"
+                               , "--body-only"
+                               , "--parse-comments"
+                               , "-s"
+                               , inputFileName ] ""
+
+  Post title date <$> makeItem body
 
 --------------------------------------------------------------------------------
 main :: IO ()
@@ -28,8 +63,9 @@ main = hakyll $ do
 
     match "posts/*.v" $ do
         route $ setExtension "html"
-        compile $ coqdoc
-          >>= loadAndApplyTemplate "templates/post.html" defaultContext
+        compile $ do
+          Post _ _ body <- coqdoc
+          loadAndApplyTemplate "templates/post.html" defaultContext body
 
     match "index.html" $ do
         route idRoute
