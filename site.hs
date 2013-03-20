@@ -8,6 +8,8 @@ import           System.Process
 coqdoc :: Compiler (Item String)
 coqdoc = do
   inputFile <- toFilePath <$> getUnderlying
+  unsafeCompiler $
+    readProcess "coqc" [ inputFile ] ""
   output <- unsafeCompiler $
             readProcess "coqdoc" [ "--no-index"
                                  , "--stdout"
