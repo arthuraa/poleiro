@@ -3,27 +3,33 @@ Require Import Coq.Strings.Ascii.
 Require Import Coq.Numbers.Natural.Peano.NPeano.
 Require Import Omega.
 
-(** Many programming languages have built-in support for string
+(** # <p> #
+    Many programming languages have built-in support for string
     processing. Coq is no exception. The standard library provides us
     with its own definition of strings. Unlike other languages,
     though, strings in Coq are not special in any way: they are just
-    members of another inductive data type. *)
+    members of another inductive data type.
+    # </p> # *)
 
 Print string.
 
-(** As we can see, [string]s are much like the [list] type, but
+(** # <p> #
+    As we can see, [string]s are much like the [list] type, but
     contain [ascii] elements instead of elements of an arbitrary
     type. [ascii]s, on the other hand, are just eightuples of
-    [bool]s. *)
+    [bool]s.
+    # </p> # *)
 
 Print ascii.
 
-(** Sure enough, if we had to use constructors explicitly for building
+(** # <p> #
+    Sure enough, if we had to use constructors explicitly for building
     [string]s, using them in Coq wouldn't be very
     practical. Fortunately, Coq provides a convenient notation for
     [string]s and [ascii], much like the built-in notation for
     numbers. They are defined in [string_scope] and [char_scope],
-    respectively. *)
+    respectively.
+    # </p> # *)
 
 Open Scope string_scope.
 Example stringEx : string := "This is a string".
@@ -31,14 +37,16 @@ Example stringEx : string := "This is a string".
 Open Scope char_scope.
 Example asciiEx : ascii := "a".
 
-(** Let's see what kind of string-processing functions we can
+(** # <p> #
+    Let's see what kind of string-processing functions we can
     write. One could certainly hope that we'd be able to write a
     function to read numbers. To do this, we will need a function to
     convert [ascii]s to [nat]s: if the character is a digit, we return
     the corresponding number. Otherwise, the whole parsing should
     fail. As in other functional programming languages, we model this
     by making our function return an [option] instead -- in this case,
-    [option nat]. *)
+    [option nat].
+    # </p> # *)
 
 Definition digitToNat (c : ascii) : option nat :=
   match c with
@@ -55,9 +63,11 @@ Definition digitToNat (c : ascii) : option nat :=
     | _   => None
   end.
 
-(** We can now use this function to read numbers. To make it more
+(** # <p> #
+    We can now use this function to read numbers. To make it more
     efficient, we can add an [acc] parameter to store the intermediate
-    results of the computation -- i.e., the number we've read so far. *)
+    results of the computation -- i.e., the number we've read so far.
+    # </p> # *)
 
 Open Scope string_scope.
 
@@ -142,9 +152,11 @@ Proof.
   congruence.
 Qed.
 
-(** Now that we can convert numbers to digits, let's see how we could
+(** # <p> #
+    Now that we can convert numbers to digits, let's see how we could
     write our printing function. One idea would be to add a parameter
     to our function to accumulate the paritially printed number:
+    # </p> #
 
 [[
     Fixpoint writeNatAux (n : nat) (acc : string) : string :=
@@ -155,18 +167,22 @@ Qed.
       end.
 ]]
 
+    # <p> #
     The algorithm is straightforward. We print the least signigicant
     digit of the number, adding it to the string we've printed so far
     (recall that the [String] constructor adds a character to the
     front of a [string]). Then, we divide the number by 10 and print
     it recursively, until we reach zero.
+    # </p> #
 
+    # <p> #
     Unfortunately, Coq doesn't accept this definition, since the
     recursive call is not done on structurally smaller terms. There
     are lots of ways to make this definition work, such as using the
     [Program] command. We will use the somewhat simpler, but standard,
     trick of adding an explicit "timeout" parameter to our
-    function. *)
+    function.
+    # </p> # *)
 
 
 Fixpoint writeNatAux (time n : nat) (acc : string) : string :=
