@@ -6,3 +6,5 @@ _cache
 site
 *.hi
 *.o
+.sass-cache
+coqdoc.css

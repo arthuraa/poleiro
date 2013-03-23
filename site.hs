@@ -7,6 +7,11 @@ import           Data.Time.Format    (parseTime)
 import           Hakyll
 import           System.Process
 
+compass :: Compiler (Item String)
+compass =
+  getResourceString >>=
+  withItemBody (unixFilter "sass" ["-s", "--scss", "--compass"])
+
 coqdoc :: Compiler (Item String)
 coqdoc = do
   inputFileName <- toFilePath <$> getUnderlying
@@ -25,9 +30,13 @@ coqdoc = do
 --------------------------------------------------------------------------------
 main :: IO ()
 main = hakyll $ do
-    match "css/*" $ do
+    match "css/*.css" $ do
         route   idRoute
         compile compressCssCompiler
+
+    match "css/*.scss" $ do
+        route $ setExtension "css"
+        compile $ compass
 
     match "posts/*.v" $ do
         route $ setExtension "html"
