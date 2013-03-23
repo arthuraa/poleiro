@@ -1,47 +1,15 @@
 --------------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
 import           Control.Applicative ((<$>))
-import           Data.Monoid         (mappend)
+import           Data.Monoid         (mappend, mconcat)
 import qualified Data.Map            as M
+import           Data.Time.Format    (parseTime)
 import           Hakyll
 import           System.Process
-import           Text.Parsec
-import           Text.Parsec.String
 
-data Post = Post { postTitle :: String
-                 , postDate :: String
-                 , postBody :: Item String }
-
--- Looks for comments that are hidden in the beginning of Coq source
--- code and tries to find metadata there
-getCoqMetadata :: String -> M.Map String String
-getCoqMetadata contents =
-  let binding = do
-        string "(*"
-        spaces
-        key <- many1 letter
-        char ':'
-        spaces
-        value <- manyTill anyChar (try $ spaces >> string "*)")
-        spaces
-        return (key, value)
-
-      metadata = do
-        string "(* begin hide *)"
-        spaces
-        bindings <- manyTill binding (try $ string "(* end hide *)")
-        return $ foldl (\m (k,v) -> M.insert k v m) M.empty bindings in
-  case parse metadata "" contents of
-    Right metadata -> metadata
-    Left _ -> M.empty
-
-coqdoc :: Compiler Post
+coqdoc :: Compiler (Item String)
 coqdoc = do
   inputFileName <- toFilePath <$> getUnderlying
-  fileContents <- itemBody <$> getResourceBody
-  let metadata = getCoqMetadata fileContents
-      title = M.findWithDefault inputFileName "title" metadata
-      date = M.findWithDefault "No date" "date" metadata
   unsafeCompiler $
     readProcess "coqc" [ inputFileName ] ""
   body <- unsafeCompiler $
@@ -52,7 +20,7 @@ coqdoc = do
                                , "-s"
                                , inputFileName ] ""
 
-  Post title date <$> makeItem body
+  makeItem body
 
 --------------------------------------------------------------------------------
 main :: IO ()
@@ -63,9 +31,9 @@ main = hakyll $ do
 
     match "posts/*.v" $ do
         route $ setExtension "html"
-        compile $ do
-          Post _ _ body <- coqdoc
-          loadAndApplyTemplate "templates/post.html" defaultContext body
+        compile $ coqdoc >>=
+          loadAndApplyTemplate "templates/post.html" postCtx >>=
+          loadAndApplyTemplate "templates/main.html" defaultContext
 
     match "index.html" $ do
         route idRoute
@@ -74,7 +42,7 @@ main = hakyll $ do
 
             getResourceBody
                 >>= applyAsTemplate indexCtx
-                >>= loadAndApplyTemplate "templates/post.html" postCtx
+                >>= loadAndApplyTemplate "templates/main.html" postCtx
                 >>= relativizeUrls
 
     match "templates/*" $ compile templateCompiler

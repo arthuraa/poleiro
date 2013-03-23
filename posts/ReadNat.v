@@ -1,8 +1,3 @@
-(* begin hide *)
-(* title: Reading and writing numbers in Coq *)
-(* date: 2013-03-20 *)
-(* end hide *)
-
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import Coq.Numbers.Natural.Peano.NPeano.
