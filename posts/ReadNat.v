@@ -26,14 +26,10 @@ Print ascii.
     respectively. *)
 
 Open Scope string_scope.
-
-Check "This is a string".
+Example stringEx : string := "This is a string".
 
 Open Scope char_scope.
-
-Check "b".
-
-Check "1".
+Example asciiEx : ascii := "a".
 
 (** Let's see what kind of string-processing functions we can
     write. One could certainly hope that we'd be able to write a
