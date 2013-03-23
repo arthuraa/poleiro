@@ -1,12 +1,23 @@
 @import "compass/reset";
+@import "compass/css3/box-shadow";
+@import "compass/css3/images";
+
+$inner-padding: 40px;
+$main-color: #f5f9e0;
+$content-background-color: 1.2 * $main-color;
+$header-color: 0.98 * $main-color;
 
 body {
-    background-color: #f5f5f5;
+    background-color: $main-color;
     position: relative;
-    max-width: 1200px;
+    max-width: 980px;
     margin: 0 auto;
     line-height: 1.5;
-    color: #333;
+    color: #222;
+}
+
+#content {
+    @include single-box-shadow;
 }
 
 #{headings()} {
@@ -15,10 +26,16 @@ body {
 }
 
 header {
+    @include background(linear-gradient(left,
+                                        0.99 * $main-color,
+                                        0.97 * $main-color));
+    background-color: $header-color;
     padding-top: 50px;
-    padding-bottom: 40px;
+    padding-bottom: 50px;
+    padding-left: $inner-padding;
+    padding-right: $inner-padding;
     h1 {
-        font-size: 3.2em;
+        font-size: 3.5em;
         margin-bottom: 20px;
     }
     h2 {
@@ -27,6 +44,10 @@ header {
 }
 
 article {
+    padding-top: $inner-padding;
+    padding-left: $inner-padding;
+    padding-right: $inner-padding;
+    background-color: $content-background-color;
     display: block;
     p.meta {
         time {
@@ -39,6 +60,11 @@ article {
         font-size: 2.5em;
         margin-bottom: 20px;
     }
+}
+
+footer {
+    background-color: $content-background-color;
+    height: 50px;
 }
 
 .paragraph {
