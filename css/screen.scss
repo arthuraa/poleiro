@@ -9,7 +9,7 @@ $header-color1: hsl(70, 70, 95);
 $header-color2: hsl(67, 60, 90);
 
 body {
-    background-color: $main-color;
+    background: $main-color url("/images/noise.png");
     position: relative;
     max-width: 980px;
     margin: 0 auto;

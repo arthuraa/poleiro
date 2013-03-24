@@ -34,6 +34,10 @@ main = hakyll $ do
         route $ setExtension "css"
         compile $ compass
 
+    match "images/*" $ do
+        route idRoute
+        compile copyFileCompiler
+
     match "posts/*.v" $ do
         route $ setExtension "html"
         compile $ coqdoc >>=
