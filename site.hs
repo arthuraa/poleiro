@@ -41,6 +41,7 @@ main = hakyll $ do
     match "posts/*.v" $ do
         route $ setExtension "html"
         compile $ coqdoc >>=
+          saveSnapshot "content" >>=
           loadAndApplyTemplate "templates/post.html" postCtx >>=
           loadAndApplyTemplate "templates/main.html" defaultContext
 
@@ -72,7 +73,7 @@ postCtx =
 --------------------------------------------------------------------------------
 postList :: ([Item String] -> [Item String]) -> Compiler String
 postList sortFilter = do
-    posts   <- sortFilter <$> loadAll "posts/*"
+    posts   <- sortFilter <$> loadAllSnapshots "posts/*" "content"
     itemTpl <- loadBody "templates/post-item.html"
     list    <- applyTemplateList itemTpl postCtx posts
     return list
