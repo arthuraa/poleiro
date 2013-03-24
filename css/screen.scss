@@ -5,7 +5,8 @@
 $inner-padding: 40px;
 $main-color: hsl(55, 50, 75%);
 $content-background-color: 1.8 * $main-color;
-$header-color: 0.7 * $main-color;
+$header-color1: hsl(21, 44, 95);
+$header-color2: hsl(19, 46, 90);
 
 body {
     background-color: $main-color;
@@ -28,9 +29,9 @@ body {
 
 header {
     @include background(linear-gradient(left,
-                                        0.8 * $main-color,
-                                        0.7 * $main-color));
-    background-color: $header-color;
+                                        $header-color1,
+                                        $header-color2));
+    background-color: $header-color1;
     padding-top: 50px;
     padding-bottom: 50px;
     padding-left: $inner-padding;
