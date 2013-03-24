@@ -54,6 +54,11 @@ main = hakyll $ do
                 >>= loadAndApplyTemplate "templates/main.html" postCtx
                 >>= relativizeUrls
 
+    match "about.md" $ do
+        route $ setExtension "html"
+        compile $ pandocCompiler
+            >>= loadAndApplyTemplate "templates/main.html" defaultContext
+
     match "templates/*" $ compile templateCompiler
 
 
