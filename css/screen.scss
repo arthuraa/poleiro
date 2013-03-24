@@ -3,9 +3,9 @@
 @import "compass/css3/images";
 
 $inner-padding: 40px;
-$main-color: #f5f9e0;
-$content-background-color: 1.2 * $main-color;
-$header-color: 0.98 * $main-color;
+$main-color: hsl(55, 50, 75%);
+$content-background-color: 1.8 * $main-color;
+$header-color: 0.7 * $main-color;
 
 body {
     background-color: $main-color;
@@ -17,6 +17,7 @@ body {
 }
 
 #content {
+    $default-box-shadow-blur: 7px;
     @include single-box-shadow;
 }
 
@@ -27,8 +28,8 @@ body {
 
 header {
     @include background(linear-gradient(left,
-                                        0.99 * $main-color,
-                                        0.97 * $main-color));
+                                        0.8 * $main-color,
+                                        0.7 * $main-color));
     background-color: $header-color;
     padding-top: 50px;
     padding-bottom: 50px;
@@ -41,6 +42,8 @@ header {
     h2 {
         font-size: 1.6em;
     }
+    border-bottom: solid 2px (0.5 * $main-color);
+
 }
 
 article {

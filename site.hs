@@ -30,10 +30,6 @@ coqdoc = do
 --------------------------------------------------------------------------------
 main :: IO ()
 main = hakyll $ do
-    match "css/*.css" $ do
-        route   idRoute
-        compile compressCssCompiler
-
     match "css/*.scss" $ do
         route $ setExtension "css"
         compile $ compass
