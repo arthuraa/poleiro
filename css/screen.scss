@@ -8,6 +8,8 @@ $content-background-color: white;
 $header-color1: hsl(70, 70, 95);
 $header-color2: hsl(67, 60, 90);
 
+$headings-font: "Source Sans Pro";
+
 body {
     background: $main-color url("/images/noise.png");
     position: relative;
@@ -23,7 +25,7 @@ body {
 }
 
 #{headings()} {
-    font-family: "Source Sans Pro";
+    font-family: $headings-font;
     font-weight: bold;
 }
 
