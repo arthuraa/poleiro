@@ -9,6 +9,8 @@ $header-color1: hsl(70, 70, 95);
 $header-color2: hsl(67, 60, 90);
 $nav-color: hsl(65, 40, 80);
 
+$paragraph-spacing: 20px;
+
 $headings-font: "Source Sans Pro";
 
 body {
@@ -70,9 +72,7 @@ nav {
 }
 
 #main {
-    padding-top: $inner-padding;
-    padding-left: $inner-padding;
-    padding-right: $inner-padding;
+    padding: $inner-padding;
     background-color: $content-background-color;
     display: block;
     p.meta {
@@ -93,8 +93,14 @@ footer {
     height: 50px;
 }
 
+/* coqdoc doesn't generate real <p> tags */
+
 .paragraph {
-    height: 20px;
+    height: $paragraph-spacing;
+}
+
+p {
+    margin-bottom: $paragraph-spacing;
 }
 
 article  a.idref:visited {color : #416DFF; text-decoration : none; }
