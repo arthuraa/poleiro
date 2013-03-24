@@ -17,7 +17,7 @@ body {
     color: #222;
 }
 
-#content {
+#wrapper {
     $default-box-shadow-blur: 7px;
     @include single-box-shadow;
 }
@@ -51,7 +51,7 @@ header {
 
 }
 
-article {
+#main {
     padding-top: $inner-padding;
     padding-left: $inner-padding;
     padding-right: $inner-padding;
