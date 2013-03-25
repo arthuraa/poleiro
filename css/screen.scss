@@ -1,6 +1,9 @@
 @import "compass/reset";
 @import "compass/css3/box-shadow";
 @import "compass/css3/images";
+@import "compass/typography/links/link-colors";
+@import "compass/typography/links/unstyled-link";
+@import "compass/typography/links/hover-link";
 
 $inner-padding: 40px;
 $main-color: hsl(55, 50, 75%);
@@ -8,6 +11,7 @@ $content-background-color: white;
 $header-color1: hsl(70, 70, 95);
 $header-color2: hsl(67, 60, 90);
 $nav-color: hsl(65, 40, 80);
+$text-color: #222;
 
 $paragraph-spacing: 20px;
 
@@ -19,17 +23,24 @@ body {
     max-width: 980px;
     margin: 0 auto;
     line-height: 1.5;
-    color: #222;
+    color: $text-color;
 }
 
 #wrapper {
     $default-box-shadow-blur: 7px;
     @include single-box-shadow;
-}
 
-#{headings()} {
-    font-family: $headings-font;
-    font-weight: bold;
+    #{headings()} {
+        font-family: $headings-font;
+        font-weight: bold;
+        color: $text-color;
+        a {
+            @include unstyled-link;
+            &:visited { color: inherit; }
+        }
+    }
+
+    margin-bottom: 2 * $inner-padding;
 }
 
 header {
@@ -44,10 +55,6 @@ header {
     h1 {
         font-size: 3.5em;
         margin-bottom: 20px;
-        a {
-            color: inherit;
-            text-decoration: none;
-        }
     }
     h2 {
         font-size: 1.6em;
@@ -85,6 +92,11 @@ nav {
     h1 {
         font-size: 2.5em;
         margin-bottom: 20px;
+    }
+    a {
+        @include link-colors(#1863a1, #0181eb, #0181eb,
+                             #751590, #0181eb);
+        @include hover-link;
     }
 }
 
