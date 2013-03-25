@@ -45,6 +45,13 @@ main = hakyll $ do
           loadAndApplyTemplate "templates/post.html" postCtx >>=
           loadAndApplyTemplate "templates/main.html" defaultContext
 
+    match "posts/*.md" $ do
+        route $ setExtension "html"
+        compile $ pandocCompiler >>=
+          saveSnapshot "content" >>=
+          loadAndApplyTemplate "templates/post.html" postCtx >>=
+          loadAndApplyTemplate "templates/main.html" defaultContext
+
     match "index.html" $ do
         route idRoute
         compile $ do
