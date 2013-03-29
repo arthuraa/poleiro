@@ -55,7 +55,7 @@ main = hakyll $ do
     match "index.html" $ do
         route idRoute
         compile $ do
-            let indexCtx = field "posts" $ \_ -> postList (take 3 . recentFirst)
+            let indexCtx = field "posts" $ const $ recentPostList 3
 
             getResourceBody
                 >>= applyAsTemplate indexCtx
@@ -76,11 +76,10 @@ postCtx =
     dateField "date" "%B %e, %Y" `mappend`
     defaultContext
 
-
 --------------------------------------------------------------------------------
-postList :: ([Item String] -> [Item String]) -> Compiler String
-postList sortFilter = do
-    posts   <- sortFilter <$> loadAllSnapshots "posts/*" "content"
+recentPostList :: Int -> Compiler String
+recentPostList n = do
+    posts   <- loadAllSnapshots "posts/*" "content" >>= recentFirst
     itemTpl <- loadBody "templates/post-item.html"
-    list    <- applyTemplateList itemTpl postCtx posts
+    list    <- applyTemplateList itemTpl postCtx $ take n posts
     return list
