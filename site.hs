@@ -29,11 +29,9 @@ coqdoc = do
                                , inputFileName ] ""
   let basename = takeBaseName inputFileName
   makeItem $ flip withUrls body $ \url ->
-    -- References in coqdoc always include the name of the module. We
-    -- strip those out so that the names make sense
-    case stripPrefix (basename ++ ".html") url of
-      Just url' -> url'
-      Nothing -> url
+    -- Disable internal links for now. Still needs to find a way of
+    -- inserting the new filename here...
+    if isExternal url then url else ""
 
 --------------------------------------------------------------------------------
 main :: IO ()
