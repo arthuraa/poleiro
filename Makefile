@@ -1,5 +1,5 @@
 all: site
-	./site rebuild
+	./site build
 
 site: site.hs
 	ghc --make site
@@ -7,4 +7,7 @@ site: site.hs
 run: site
 	./site rebuild && ./site preview
 
-.PHONY: run
+deploy:
+	./deploy.sh
+
+.PHONY: run deploy
