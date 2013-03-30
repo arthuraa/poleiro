@@ -4,8 +4,11 @@ import           Control.Applicative ((<$>))
 import           Data.Monoid         (mappend, mconcat)
 import qualified Data.Map            as M
 import           Data.Time.Format    (parseTime)
+import           Data.List           (stripPrefix)
 import           Hakyll
 import           System.Process
+import           System.FilePath     (takeBaseName)
+import           Text.Regex
 
 compass :: Compiler (Item String)
 compass =
@@ -24,8 +27,13 @@ coqdoc = do
                                , "--parse-comments"
                                , "-s"
                                , inputFileName ] ""
-
-  makeItem body
+  let basename = takeBaseName inputFileName
+  makeItem $ flip withUrls body $ \url ->
+    -- References in coqdoc always include the name of the module. We
+    -- strip those out so that the names make sense
+    case stripPrefix (basename ++ ".html") url of
+      Just url' -> url'
+      Nothing -> url
 
 --------------------------------------------------------------------------------
 main :: IO ()
