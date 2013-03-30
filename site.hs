@@ -91,6 +91,14 @@ main = hakyll $ do
           >>= loadAndApplyTemplate "templates/main.html" archiveCtx
           >>= relativizeUrls
 
+    create ["atom.xml"] $ do
+      route idRoute
+      compile $ do
+          let feedCtx = postCtx `mappend` bodyField "description"
+          posts <- fmap (take 10) . recentFirst =<<
+              loadAllSnapshots "posts/*" "content"
+          renderAtom feedConfiguration feedCtx posts
+
     match "index.html" $ do
         route idRoute
         compile $ do
@@ -127,3 +135,12 @@ recentPostList n = do
     posts   <- loadAllSnapshots "posts/*" "content" >>= recentFirst
     itemTpl <- loadBody "templates/post-index.html"
     applyTemplateList itemTpl postCtx $ take n posts
+
+feedConfiguration :: FeedConfiguration
+feedConfiguration = FeedConfiguration
+    { feedTitle       = "Poleiro: latest posts"
+    , feedDescription = ""
+    , feedAuthorName  = "Arthur Azevedo de Amorim"
+    , feedAuthorEmail = ""
+    , feedRoot        = "http://www.cis.upenn.edu/~aarthur/poleiro"
+    }
