@@ -78,6 +78,19 @@ main = hakyll $ do
         route $ setExtension "html"
         compile $ pandocCompiler >>= postProcessPost
 
+    create ["archives.html"] $ do
+      route idRoute
+      compile $ do
+        let archiveCtx =
+              field "posts" (const archives) `mappend`
+              constField "title" "Archives"  `mappend`
+              defaultContext
+
+        makeItem ""
+          >>= loadAndApplyTemplate "templates/archives.html" archiveCtx
+          >>= loadAndApplyTemplate "templates/main.html" archiveCtx
+          >>= relativizeUrls
+
     match "index.html" $ do
         route idRoute
         compile $ do
@@ -103,6 +116,12 @@ postCtx =
     defaultContext
 
 --------------------------------------------------------------------------------
+archives :: Compiler String
+archives = do
+    posts   <- loadAllSnapshots "posts/*" "content" >>= recentFirst
+    itemTpl <- loadBody "templates/post-item.html"
+    applyTemplateList itemTpl postCtx posts
+
 recentPostList :: Int -> Compiler String
 recentPostList n = do
     posts   <- loadAllSnapshots "posts/*" "content" >>= recentFirst
