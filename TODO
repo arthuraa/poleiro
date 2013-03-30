@@ -1,3 +1,4 @@
 * Handle inner paragraphs properly (i.e. output <p></p> tags)
 * Insert output of commands like Check and Print automatically
 * Use same syntax highlight for wrong Coq code
+* Make Hakyll handle .v dependencies correctly
