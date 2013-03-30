@@ -42,7 +42,7 @@ coqdoc = do
                                , "--body-only"
                                , "--parse-comments"
                                , "-s"
-                               , inputFileName ] "a"
+                               , inputFileName ] ""
   let basename = takeBaseName inputFileName
   makeItem $ flip withUrls body $ \url ->
     -- coqdoc apparently doesn't allow us to change the links of the
