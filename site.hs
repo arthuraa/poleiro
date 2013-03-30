@@ -104,6 +104,7 @@ main = hakyll $ do
         route $ setExtension "html"
         compile $ pandocCompiler
             >>= loadAndApplyTemplate "templates/main.html" defaultContext
+            >>= relativizeUrls
 
     match "templates/*" $ compile templateCompiler
 
