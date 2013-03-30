@@ -1,3 +1,6 @@
+all: site
+	./site rebuild
+
 site: site.hs
 	ghc --make site
 
