@@ -11,12 +11,19 @@ Require Import Omega.
 
 Print string.
 
+(* Inductive string : Set :=
+      EmptyString : string | String : ascii -> string -> string *)
+
 (** As we can see, [string]s are much like the [list] type, but
     contain [ascii] elements instead of elements of an arbitrary
     type. [ascii]s, on the other hand, are just eightuples of
     [bool]s. *)
 
 Print ascii.
+
+(* Inductive ascii : Set :=
+      Ascii : bool ->
+              bool -> bool -> bool -> bool -> bool -> bool -> bool -> ascii *)
 
 (** Sure enough, if we had to use constructors explicitly for building
     [string]s, using them in Coq wouldn't be very
