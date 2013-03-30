@@ -83,9 +83,10 @@ nav {
     background-color: $content-background-color;
     display: block;
     p.meta {
-        time {
-            font-family: "Source Sans Pro";
-            font-size: 1.75em;
+        font-family: $headings-font;
+        font-size: 1.75em;
+        a.comments {
+            color: inherit;
         }
         margin-bottom: 15px;
     }
