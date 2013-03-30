@@ -30,7 +30,9 @@ compass =
 
 coqdoc :: Compiler (Item String)
 coqdoc = do
-  inputFileName <- toFilePath <$> getUnderlying
+  ident <- getUnderlying
+  let inputFileName = toFilePath ident
+  route <- getRoute ident
   unsafeCompiler $
     readProcess "coqc" [ inputFileName ] ""
   body <- unsafeCompiler $
@@ -39,12 +41,15 @@ coqdoc = do
                                , "--body-only"
                                , "--parse-comments"
                                , "-s"
-                               , inputFileName ] ""
+                               , inputFileName ] "a"
   let basename = takeBaseName inputFileName
   makeItem $ flip withUrls body $ \url ->
-    -- Disable internal links for now. Still needs to find a way of
-    -- inserting the new filename here...
-    if isExternal url then url else ""
+    -- coqdoc apparently doesn't allow us to change the links of the
+    -- generated HTML that point to itself. Therefore, we must do it
+    -- by hand.
+    case (stripPrefix (basename ++ ".html") url, route) of
+      (Just url', Just route) -> "/" ++ route ++ url'
+      _ -> url
 
 --------------------------------------------------------------------------------
 main :: IO ()
