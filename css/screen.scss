@@ -115,6 +115,10 @@ p {
     margin-bottom: $paragraph-spacing;
 }
 
+article + article {
+    margin-top: 3 * $inner-padding;
+}
+
 article  a.idref:visited {color : #416DFF; text-decoration : none; }
 article  a.idref:link {color : #416DFF; text-decoration : none; }
 article  a.idref:hover {text-decoration : none; }
