@@ -6,6 +6,7 @@ import qualified Data.Map            as M
 import           Data.Time.Format    (parseTime)
 import           Data.List           (stripPrefix)
 import           Data.Char           (toLower, isAlphaNum)
+import           Control.Monad
 import           Hakyll
 import           System.Process
 import           System.FilePath     (takeBaseName)
@@ -51,6 +52,12 @@ coqdoc = do
       (Just url', Just route) -> "/" ++ route ++ url'
       _ -> url
 
+postProcessPost :: Item String -> Compiler (Item String)
+postProcessPost =
+  saveSnapshot "content" >=>
+  loadAndApplyTemplate "templates/post.html" postCtx >=>
+  loadAndApplyTemplate "templates/main.html" defaultContext
+
 --------------------------------------------------------------------------------
 main :: IO ()
 main = hakyll $ do
@@ -63,18 +70,12 @@ main = hakyll $ do
         compile copyFileCompiler
 
     match "posts/*.v" $ do
-        route $ metadataRoute $ constRoute . coqPostName
-        compile $ coqdoc >>=
-          saveSnapshot "content" >>=
-          loadAndApplyTemplate "templates/post.html" postCtx >>=
-          loadAndApplyTemplate "templates/main.html" defaultContext
+        route $ metadataRoute $ \meta -> constRoute ("posts/" ++ coqPostName meta)
+        compile $ coqdoc >>= postProcessPost
 
     match "posts/*.md" $ do
         route $ setExtension "html"
-        compile $ pandocCompiler >>=
-          saveSnapshot "content" >>=
-          loadAndApplyTemplate "templates/post.html" postCtx >>=
-          loadAndApplyTemplate "templates/main.html" defaultContext
+        compile $ pandocCompiler >>= postProcessPost
 
     match "index.html" $ do
         route idRoute
