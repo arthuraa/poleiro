@@ -8,8 +8,8 @@
 $inner-padding: 40px;
 $main-color: hsl(55, 50, 75%);
 $content-background-color: white;
-$header-color1: hsl(70, 70, 95);
-$header-color2: hsl(67, 60, 90);
+$header-color1: hsl(70, 70, 92);
+$header-color2: hsl(67, 60, 83);
 $nav-color: hsl(65, 40, 80);
 $text-color: #222;
 
@@ -63,6 +63,9 @@ header {
 }
 
 nav {
+    @include background(linear-gradient(top,
+                                        $nav-color,
+                                        0.83 * $nav-color));
     background-color: $nav-color;
     border-top: solid 1px (0.5 * $main-color);
     border-bottom: solid 1px (0.5 * $main-color);
