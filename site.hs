@@ -9,41 +9,29 @@ import           Data.Char           (toLower, isAlphaNum)
 import           Control.Monad
 import           Hakyll
 import           System.Process
-import           System.FilePath     (takeBaseName)
+import           System.FilePath     (takeBaseName, (</>), takeDirectory)
 import           Text.Regex
-
-makeSlug :: String -> String
-makeSlug = filter (\c -> isAlphaNum c || c == '-') . map subst
-  where subst '_' = '-'
-        subst ' ' = '-'
-        subst c = toLower c
-
-coqPostName :: Metadata -> String
-coqPostName meta =
-  M.findWithDefault "" "date" meta ++ "-"
-  ++ (makeSlug $ M.findWithDefault "" "title" meta)
-  ++ ".html"
 
 compass :: Compiler (Item String)
 compass =
   getResourceString >>=
   withItemBody (unixFilter "sass" ["-s", "--scss", "--compass"])
 
-coqdoc :: Compiler (Item String)
-coqdoc = do
-  ident <- getUnderlying
-  let inputFileName = toFilePath ident
-  route <- getRoute ident
+coqdoc :: String -> Compiler (Item String)
+coqdoc coqFileName = do
+  route <- getUnderlying >>= getRoute
+  path <- takeDirectory <$> toFilePath <$> getUnderlying
+  let coqFileName' = path </> coqFileName
   unsafeCompiler $
-    readProcess "coqc" [ inputFileName ] ""
+    readProcess "coqc" [ coqFileName' ] ""
   body <- unsafeCompiler $
           readProcess "coqdoc" [ "--no-index"
                                , "--stdout"
                                , "--body-only"
                                , "--parse-comments"
                                , "-s"
-                               , inputFileName ] ""
-  let basename = takeBaseName inputFileName
+                               , coqFileName' ] ""
+  let basename = takeBaseName coqFileName
   makeItem $ flip withUrls body $ \url ->
     -- coqdoc apparently doesn't allow us to change the links of the
     -- generated HTML that point to itself. Therefore, we must do it
@@ -51,6 +39,9 @@ coqdoc = do
     case (stripPrefix (basename ++ ".html") url, route) of
       (Just url', Just route) -> "/" ++ route ++ url'
       _ -> url
+
+coqPost :: Compiler (Item String)
+coqPost = (trim <$> itemBody <$> getResourceBody) >>= coqdoc
 
 postProcessPost :: Item String -> Compiler (Item String)
 postProcessPost =
@@ -70,9 +61,9 @@ main = hakyll $ do
         route idRoute
         compile copyFileCompiler
 
-    match "posts/*.v" $ do
-        route $ metadataRoute $ \meta -> constRoute ("posts/" ++ coqPostName meta)
-        compile $ coqdoc >>= postProcessPost
+    match "posts/*.coqpost" $ do
+        route $ setExtension "html"
+        compile $ coqPost >>= postProcessPost
 
     match "posts/*.md" $ do
         route $ setExtension "html"
