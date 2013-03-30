@@ -8,3 +8,4 @@ site
 *.o
 .sass-cache
 coqdoc.css
+deploy.config.sh
