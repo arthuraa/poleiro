@@ -107,5 +107,4 @@ recentPostList :: Int -> Compiler String
 recentPostList n = do
     posts   <- loadAllSnapshots "posts/*" "content" >>= recentFirst
     itemTpl <- loadBody "templates/post-index.html"
-    list    <- applyTemplateList itemTpl postCtx $ take n posts
-    return list
+    applyTemplateList itemTpl postCtx $ take n posts
