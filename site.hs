@@ -56,7 +56,8 @@ postProcessPost :: Item String -> Compiler (Item String)
 postProcessPost =
   saveSnapshot "content" >=>
   loadAndApplyTemplate "templates/post.html" postCtx >=>
-  loadAndApplyTemplate "templates/main.html" defaultContext
+  loadAndApplyTemplate "templates/main.html" defaultContext >=>
+  relativizeUrls
 
 --------------------------------------------------------------------------------
 main :: IO ()
