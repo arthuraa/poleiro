@@ -6,8 +6,8 @@ Require Import Omega.
 (** Many programming languages have built-in support for string
     processing. Coq is no exception. The standard library provides us
     with its own definition of strings. Unlike other languages,
-    though, strings in Coq are not special in any way: they are just
-    members of another inductive data type. *)
+    though, strings in Coq are not fundamentally different from other
+    data types: they are defined as an inductive type. *)
 
 Print string.
 
