@@ -2,4 +2,5 @@
 * Insert output of commands like Check and Print automatically
 * Use same syntax highlight for wrong Coq code
 * Make Hakyll handle .v dependencies correctly
-* (Leonidas) Comments in the middle of proofs might make them hard to read.
+* (Leonidas) Comments in the middle of proofs might make them hard to read. (Antal) It is actually good.
+* Get nice output for code that doesn't typecheck.
