@@ -12,7 +12,8 @@ $header-color1: hsl(70, 70, 92);
 $header-color2: hsl(67, 60, 83);
 $nav-color: hsl(65, 40, 80);
 $text-color: #222;
-
+$title-size: 2.5em;
+$heading-size-ratio: 0.66;
 $paragraph-spacing: 20px;
 
 $headings-font: "Source Sans Pro";
@@ -41,6 +42,9 @@ body {
     }
 
     margin-bottom: 2 * $inner-padding;
+    i {
+        font-style: italic;
+    }
 }
 
 header {
@@ -94,8 +98,16 @@ nav {
         margin-bottom: 15px;
     }
     h1 {
-        font-size: 2.5em;
+        font-size: $title-size;
         margin-bottom: 20px;
+    }
+    h2 {
+        font-size : $heading-size-ratio * $title-size;
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
+    h2 + .paragraph {
+        height: 0;
     }
     a {
         @include link-colors(#1863a1, #0181eb, #0181eb,
