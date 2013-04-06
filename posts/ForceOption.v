@@ -116,7 +116,9 @@ Proof. reflexivity. Qed.
 
 End FirstTry.
 
-(** There are two key insights that we need here. First, types in Coq
+(** ** Putting the type system to work
+
+    There are two key insights that we need here. First, types in Coq
     can be manipulated pretty much like any other values in the
     language. In particular, this means that functions can take types
     as arguments and return other types. This is not too strange: the
@@ -178,27 +180,56 @@ Definition forceOption A Err (o : option A) (err : Err) : match o with
 Definition f1 : nat := forceOption nat bool (Some 42) false.
 
 (** If, on the other hand, a [None] is passed to the function, the
-    return type will be [Err], which is meant to signal that there was
-    an error. Thus, if [Err] and [A] are not the same, type checking
-    will fail and a type error will be issued. *)
+    return type will be [Err], which is used to signal the occurrence
+    of an error. Thus, if [Err] and [A] are not the same, type
+    checking will fail and a type error will be issued. *)
 
 (* Definition f2 : nat := forceOption nat bool None false. *)
 (* Toplevel input, characters 43-74:
    Error: The term "forceOption nat bool None false" has type
    "bool" while it is expected to have type "nat". *)
 
-Module SecondTry.
-
+(** With [forceOption] in hand, it is easy to solve our problem. We
+    begin by defining a singleton type that represents type errors. *)
 
 Inductive parseError := ParseError.
+
+(** Now, we are ready for our second attempt. *)
+
+Module SecondTry.
 
 Definition x (s : string) :=
   forceOption nat parseError (readHexNat s) ParseError.
 
-Example e3 : x"ff" = 255.
+(** Our new notation behaves as expected on the previous examples. The
+    type annotations below ([: nat]) are not mandatory; they are just
+    there to illustrate that the types match. *)
+
+Example e1 : (x"ff" : nat) = 255.
 Proof. reflexivity. Qed.
 
-Example e4 : x"1O" = ParseError.
+Example e2 : (x"a0f" : nat) = 2575.
+Proof. reflexivity. Qed.
+
+(** A parse error will result in a [None], which will be translated to
+    a [parseError] by [forceOption], and therefore will cause a type
+    error when used as a [nat]. *)
+
+Example e3 : (x"1O" : parseError) = ParseError.
 Proof. reflexivity. Qed.
 
 End SecondTry.
+
+(** ** Summary
+
+    We've seen that the expressivity of Coq's type system makes it
+    possible to encode tricks that would be unnatural or just
+    impossible in other languages.
+
+    As discussed above, in OCaml or Haskell one could trigger an error
+    when the program encounters an unexpected situation, such as
+    getting a [None] after parsing a number. While better than just
+    returning a nonsensical result, like we did in our first attempt,
+    this solution still only reveals the error at runtime. Using Coq's
+    dependent types, we were able to detect such errors as type errors
+    at compile time, without resorting to any external features. *)
