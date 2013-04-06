@@ -99,7 +99,7 @@ Proof. reflexivity. Qed.
     and fixed. Here, on the other hand, we chose to ignore such
     errors. *)
 
-Example e3 : x"1O" = 0.
+Example e3 : x"1O" = 0. (* <- capital "O", not "0" *)
 Proof. reflexivity. Qed.
 
 (** Such errors won't be immediately noticeable, and will probably
@@ -111,7 +111,43 @@ Proof. reflexivity. Qed.
 
 End FirstTry.
 
-Module SecondTry.
+(** There are two key insights that we need here. First, types in Coq
+    can be manipulated pretty much like any other values in the
+    language. In particular, this means that functions can take types
+    as arguments and return other types. This is not too strange: the
+    familiar [list] type constructor, for instance, is just a function
+    that takes a type as input and returns the type of lists of that
+    type. *)
+
+Check list.
+
+(* list
+     : Type -> Type *)
+
+(** As a more interesting example, one can write a function that takes
+    some piece of _data_ as input and returns a Coq type. *)
+
+Definition natOrString (b : bool) : Type :=
+  if b then nat else string.
+
+(** This idea might seem odd when seen for the first time, but it
+    enables very powerful techniques when combined with a second key
+    feature. Coq is a _dependently typed_ language, which means that
+    the return type of a function can depend on values passed to it as
+    arguments. *)
+
+Definition alwaysZero (b : bool) : natOrString b :=
+  match b with
+    | true => 0
+    | false => "0"
+  end.
+
+Definition z1 : nat := alwaysZero true.
+Definition z2 : string := alwaysZero false.
+
+(** We can see that the Coq type checker accepted the first definition
+    because it knows that [alwaysZero] returns a [nat] when its
+    argument is [true], and similarly for the second one. *)
 
 Definition forceOption {A Err} (o : option A) (err : Err) : match o with
                                                               | Some _ => A
@@ -121,6 +157,9 @@ Definition forceOption {A Err} (o : option A) (err : Err) : match o with
     | Some a => a
     | None => err
   end.
+
+Module SecondTry.
+
 
 Inductive parseError := ParseError.
 
