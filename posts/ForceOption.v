@@ -1,20 +1,17 @@
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 
-Open Scope char_scope.
-
 (** Binary numbers are so ubiquitous in Computer Science that
-    programming languages often have special notations for them. Many
-    of them allow programmers to write numbers in base 16, because of
-    its close correspondence with how things are
-    represented. Unfortunately, Coq has no built-in support for
-    hexadecimal notation for numbers. Even though the language allows
-    users to extend its syntax, this mechanism is not powerful enough
-    to support these additions. A nice illustration of this fact is
-    the built-in decimal syntax for numbers, which is coded directly
+    programming languages often have special notations for them. The
+    most popular one is arguably hexadecimal notation. It is close to
+    binary representation, since each digit corresponds exactly to
+    four bits, but it is much more compact. Unfortunately, Coq has no
+    built-in support for hexadecimal notation. While the language does
+    allow the user to extend its syntax, this mechanism is not
+    powerful enough to implement this feature. Coq's own built-in
+    decimal notation, for instance, is a special case coded directly
     in OCaml. In this post, I will show a way to circumvent this
-    problem by using Coq itself to parse the new notation, which can
-    be nicely adapted to similar situations.
+    problem by using Coq itself to parse base 16 numbers.
 
     ** Reading numbers
 
@@ -24,6 +21,8 @@ Open Scope char_scope.
     writing such a function is straightforward. The code that follows
     is pretty much the same as in our past example, but reworked for
     base 16. *)
+
+Open Scope char_scope.
 
 Definition hexDigitToNat (c : ascii) : option nat :=
   match c with
@@ -61,22 +60,22 @@ Fixpoint readHexNatAux (s : string) (acc : nat) : option nat :=
 Definition readHexNat (s : string) : option nat :=
   readHexNatAux s 0.
 
-(** Our function works just as expected. *)
+(** Our function behaves just as expected. *)
 
 Example readHexNat1 : readHexNat "ff" = Some 255.
 Proof. reflexivity. Qed.
 
 (** ** Convenient notation
 
-    Now that we have our function, we can use it to simulate support
-    for hexadecimal numbers in Coq. Since [readHexNat] returns an
-    [option nat], however, we can't just use it where a natural number
-    is expected, because the types do not match. In regular functional
-    programming languages such as Haskell or OCaml, one could just
-    raise a runtime error when such a parse error is found. This is
-    not possible in Coq, since all functions must be total. Instead of
-    doing that, we can just choose to return a default number when an
-    error is found. *)
+    Now that we have a Coq function that reads hexadecimal numbers, we
+    can use it as our notation. There is a small problem,
+    though. Since [readHexNat] returns an [option nat], we can't just
+    use it where a natural number is expected, because the types do
+    not match. In regular functional programming languages such as
+    Haskell or OCaml, one could just raise a runtime error when such a
+    parse error is found. This is not possible in Coq, since all
+    functions must be total. Instead of doing that, we return a
+    default number when an error is found. *)
 
 Module FirstTry.
 
@@ -95,31 +94,33 @@ Example e2 : x"a0f" = 2575.
 Proof. reflexivity. Qed.
 
 (** Though slightly awkward, this notation is not too different from
-    the usual [0xa0f] present in C and many other languages.
+    the usual [0x] notation present in C and many other languages.
 
     In spite of being simple, this approach has a significant drawback
     when compared to languages that understand base 16 numbers
     naturally. In those languages, a misspelled number will most
-    likely result in a parse error, which will be probably caught soon
+    likely result in a parse error, which will probably be caught soon
     and fixed. Here, on the other hand, we chose to ignore such
-    errors. *)
+    errors. Suppose, for instance, that we mistakingly type 10 with a
+    capital "O" instead of "0" in our code. Our number would now be
+    understood as 0. *)
 
-Example e3 : x"1O" = 0. (* <- capital "O", not "0" *)
+Example e3 : x"1O" = 0.
 Proof. reflexivity. Qed.
 
-(** Such errors won't be immediately noticeable, and will probably
-    manifest themselves as problems in other parts of the program, not
-    directly related to their cause. It may seem at this point that we
-    would have either to accept this limitation and live with it, or
-    to patch the Coq source code and implement the new notation by
-    hand. Luckily, a sane solution exists. *)
+(** Such errors may not be noticed immediately, and will probably
+    manifest themselves as problems in other parts of the program,
+    making it hard to track the real cause. It may seem at this point
+    that we would either have to accept this limitation and live with
+    it, or need to patch the Coq source code and implement the new
+    notation by hand. Luckily, a sane solution exists. *)
 
 End FirstTry.
 
 (** ** Putting the type system to work
 
     There are two key insights that we need here. First, types in Coq
-    can be manipulated pretty much like any other values in the
+    can be manipulated pretty much like any other value in the
     language. In particular, this means that functions can take types
     as arguments and return other types. This is not too strange: the
     familiar [list] type constructor, for instance, is just a function
@@ -152,13 +153,13 @@ Definition alwaysZero (b : bool) : natOrString b :=
 Definition z1 : nat := alwaysZero true.
 Definition z2 : string := alwaysZero false.
 
-(** We can see that the Coq type checker accepted the first definition
-    because it knows that [alwaysZero] returns a [nat] when its
-    argument is [true], and similarly for the second one.
+(** The Coq type checker accepts the first definition because it knows
+    that [alwaysZero] returns a [nat] when its argument is [true], and
+    similarly for the second one.
 
-    We can now use this idea to define a function that extracts the
-    value of an [option] when it has the form [Some a], but returns an
-    element of some other arbitrary type otherwise: *)
+    Using this idea, we define a function that extracts the value of
+    an [option] when it has the form [Some a], but returns an element
+    of some other arbitrary type otherwise: *)
 
 Definition forceOption A Err (o : option A) (err : Err) : match o with
                                                             | Some _ => A
