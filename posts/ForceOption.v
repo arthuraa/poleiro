@@ -71,9 +71,12 @@ Proof. reflexivity. Qed.
     Now that we have our function, we can use it to simulate support
     for hexadecimal numbers in Coq. Since [readHexNat] returns an
     [option nat], however, we can't just use it where a natural number
-    is expected, because the types do not match. One solution is to
-    use some default value for the result when we get a parse error,
-    and now everything works. *)
+    is expected, because the types do not match. In regular functional
+    programming languages such as Haskell or OCaml, one could just
+    raise a runtime error when such a parse error is found. This is
+    not possible in Coq, since all functions must be total. Instead of
+    doing that, we can just choose to return a default number when an
+    error is found. *)
 
 Module FirstTry.
 
@@ -82,6 +85,8 @@ Definition x (s : string) : nat :=
     | Some n => n
     | None => 0
   end.
+
+(** This function allows us to write numbers with nice syntax. *)
 
 Example e1 : x"ff" = 255.
 Proof. reflexivity. Qed.
@@ -147,16 +152,40 @@ Definition z2 : string := alwaysZero false.
 
 (** We can see that the Coq type checker accepted the first definition
     because it knows that [alwaysZero] returns a [nat] when its
-    argument is [true], and similarly for the second one. *)
+    argument is [true], and similarly for the second one.
 
-Definition forceOption {A Err} (o : option A) (err : Err) : match o with
-                                                              | Some _ => A
-                                                              | None => Err
-                                                            end :=
+    We can now use this idea to define a function that extracts the
+    value of an [option] when it has the form [Some a], but returns an
+    element of some other arbitrary type otherwise: *)
+
+Definition forceOption A Err (o : option A) (err : Err) : match o with
+                                                            | Some _ => A
+                                                            | None => Err
+                                                          end :=
   match o with
     | Some a => a
     | None => err
   end.
+
+(** The type signature of this function looks weird, but nothing
+    fundamentally complicated is hapenning here. To see how this
+    function could help us solve our problem, suppose that the Coq
+    type checker is able to detect statically that the [o] argument
+    passed to [forceOption] is [Some a]. In this case, the result type
+    of the computation will be exactly [A], and we will be able to use
+    it like any other value of [A]: *)
+
+Definition f1 : nat := forceOption nat bool (Some 42) false.
+
+(** If, on the other hand, a [None] is passed to the function, the
+    return type will be [Err], which is meant to signal that there was
+    an error. Thus, if [Err] and [A] are not the same, type checking
+    will fail and a type error will be issued. *)
+
+(* Definition f2 : nat := forceOption nat bool None false. *)
+(* Toplevel input, characters 43-74:
+   Error: The term "forceOption nat bool None false" has type
+   "bool" while it is expected to have type "nat". *)
 
 Module SecondTry.
 
@@ -164,7 +193,7 @@ Module SecondTry.
 Inductive parseError := ParseError.
 
 Definition x (s : string) :=
-  forceOption (readHexNat s) ParseError.
+  forceOption nat parseError (readHexNat s) ParseError.
 
 Example e3 : x"ff" = 255.
 Proof. reflexivity. Qed.
