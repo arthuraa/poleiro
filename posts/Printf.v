@@ -2,9 +2,26 @@ Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import Coq.Numbers.Natural.Peano.NPeano.
 
+Notation "[ ]" := nil : list_scope.
 Notation "x :: y" := (String x y) : string_scope.
 
-Open Scope string_scope.
+Open Scope list_scope.
+Open Scope char_scope.
+
+Definition digitToNat (c : ascii) : option nat :=
+  match c with
+    | "0" => Some 0
+    | "1" => Some 1
+    | "2" => Some 2
+    | "3" => Some 3
+    | "4" => Some 4
+    | "5" => Some 5
+    | "6" => Some 6
+    | "7" => Some 7
+    | "8" => Some 8
+    | "9" => Some 9
+    | _   => None
+  end.
 
 Definition natToDigit (n : nat) : ascii :=
   match n with
@@ -20,98 +37,118 @@ Definition natToDigit (n : nat) : ascii :=
     | _ => "9"
   end%char.
 
-Fixpoint writeNatAux (time n : nat) (acc : string) : string :=
-  let acc' := String (natToDigit (n mod 10)) acc in
+Open Scope string_scope.
+
+Fixpoint writeNatAux (time n : nat) (crop : bool) (acc : string) : string :=
   match time with
-    | 0 => acc'
+    | 0 => acc
     | S time' =>
+      let acc' := natToDigit (n mod 10) :: acc in
       match n / 10 with
-        | 0 => acc'
-        | n' => writeNatAux time' n' acc'
+        | 0 => if crop then acc'
+               else writeNatAux time' 0 crop acc'
+        | n' => writeNatAux time' n' crop acc'
       end
   end.
 
 Definition writeNat (n : nat) : string :=
-  writeNatAux n n "".
+  writeNatAux (S n) n true "".
+
+Definition writeNatSize (size : nat) (n : nat) : string :=
+  writeNatAux size n false "".
 
 Definition writeBool (b : bool) : string :=
   if b then "true" else "false".
 
-Module FirstTry.
+Inductive directive : Type :=
+| DLit : ascii -> directive
+| DNum : option nat -> directive
+| DBool : directive
+| DString : directive
+| DChar : directive.
 
-Fixpoint printfT (s : string) : Type :=
-  match s with
-    | "" => string
-    | "%" :: s' => printfEscT s'
-    | c :: s' => printfT s'
-  end
-with
-printfEscT (s : string) : Type :=
-  match s with
-    | "" => string
-    | "d" :: s' => nat -> printfT s'
-    | c :: s' => printfT s'
+Definition format := list directive.
+
+Definition consOpt {A} (x : A) (o : option (list A)) : option (list A) :=
+  match o with
+    | Some xs => Some (x :: xs)%list
+    | None => None
   end.
 
-Fixpoint printfAux (s : string) (acc : string) {struct s} : printfT s :=
+Fixpoint parseFormat (s : string) : option format :=
   match s with
-    | "" => acc
-    | "%" :: s' => printfEscAux s' acc
-    | c :: s' => printfAux s' (acc ++ (c :: ""))
+    | "" => Some []
+    | "%" :: s' =>
+      match s' with
+        | "%" :: s'' => consOpt (DLit "%"%char) (parseFormat s'')
+        | "b" :: s'' => consOpt DBool (parseFormat s'')
+        | "s" :: s'' => consOpt DString (parseFormat s'')
+        | "c" :: s'' => consOpt DChar (parseFormat s'')
+        | _ => parseFormatSize s' 0
+      end
+    | c :: s' =>
+      consOpt (DLit c) (parseFormat s')
   end
-with
-printfEscAux (s : string) (acc : string) : printfEscT s :=
-  match s with
-    | "" => (acc ++ "%")
-    | "d" :: s' => fun n => printfAux s' (acc ++ writeNat n)
-    | c :: s' => printfAux s' (acc ++ (c :: ""))
-  end.
 
-End FirstTry.
+with parseFormatSize (s : string) (acc : nat) : option format :=
+       match s with
+         | "" => None
+         | "d" :: s' => consOpt (DNum (Some acc)) (parseFormat s')
+         | c :: s' =>
+           match digitToNat c with
+             | Some n => parseFormatSize s' (10 * acc + n)
+             | None => None
+           end
+       end.
+
+Fixpoint formatType (f : format) : Type :=
+  match f with
+    | [] => string
+    | dir :: dirs =>
+      match dir with
+        | DLit _ => formatType dirs
+        | DNum _ => nat -> formatType dirs
+        | DBool => bool -> formatType dirs
+        | DString => string -> formatType dirs
+        | DChar => ascii -> formatType dirs
+      end
+  end%list.
+
+Fixpoint printfImpl (f : format) (acc : string) : formatType f :=
+  match f with
+    | [] => acc
+    | (dir :: dirs)%list =>
+      match dir return formatType (dir :: dirs)%list with
+        | DLit c => printfImpl dirs (acc ++ c :: "")
+        | DNum o => fun n =>
+                      printfImpl dirs
+                                 match o with
+                                   | Some size => acc ++ writeNatSize size n
+                                   | None => acc ++ writeNat n
+                                 end
+        | DBool => fun b => printfImpl dirs (acc ++ writeBool b)
+        | DString => fun s => printfImpl dirs (acc ++ s)
+        | DChar => fun c => printfImpl dirs (acc ++ c :: "")
+      end
+  end.
 
 Inductive printfError := InvalidFormat.
 
-Fixpoint printfT (s : string) : Type :=
-  match s with
-    | "" => string
-    | c :: s' =>
-      match c with
-        | "%"%char =>
-          match s' with
-            | "d" :: s'' => nat -> printfT s''
-            | "b" :: s'' => bool -> printfT s''
-            | "s" :: s'' => string -> printfT s''
-            | "c" :: s'' => ascii -> printfT s''
-            | "%" :: s'' => printfT s''
-            | _ => printfError
-          end
-        | _ => printfT s'
-      end
-  end.
-
-Fixpoint printfAux (s : string) (k : string -> string) : printfT s :=
-  match s return printfT s with
-    | "" => k ""
-    | c :: s' =>
-      match c return printfT (c :: s') with
-        | "%"%char =>
-          match s' with
-            | "d" :: s'' => fun n => printfAux s'' (fun acc => k (writeNat n ++ acc))
-            | "b" :: s'' => fun b => printfAux s'' (fun acc => k (writeBool b ++ acc))
-            | "s" :: s'' => fun s => printfAux s'' (fun acc => k (s ++ acc))
-            | "c" :: s'' => fun c => printfAux s'' (fun acc => k (c :: acc))
-            | "%" :: s'' => printfAux s'' (fun acc => k ("%" ++ acc))
-            | _ => InvalidFormat
-          end
-        | _ => printfAux s' (fun s => k (c :: s))
-      end
+Definition printfT (s : string) : Type :=
+  match parseFormat s with
+    | Some f => formatType f
+    | None => printfError
   end.
 
 Definition printf (s : string) : printfT s :=
-  printfAux s (fun s => s).
+  match parseFormat s as o
+                      return match o with
+                               | Some f => formatType f
+                               | None => printfError
+                             end
+  with
+    | Some f => printfImpl f ""
+    | None => InvalidFormat
+  end.
 
-Eval compute in printfT "asdf%d = %c%%".
-
-Definition s : string := printf "asdf%d = %b" 42 false.
-
-Eval compute in s.
+Eval compute in printf "Hello, I'm %s and I am %2d years old" "Arthur" 2.
