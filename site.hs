@@ -38,29 +38,34 @@ coqdoc coqFileName = do
       (Just url', Just route) -> "/" ++ route ++ url'
       _ -> url
 
-gitHubBlobPath = "https://github.com/arthuraa/poleiro/blob/master"
-
-coqPost :: Compiler (Item String)
-coqPost = do
+getCoqFileName :: Compiler String
+getCoqFileName = do
   name <- trim <$> itemBody <$> getResourceBody
   path <- takeDirectory <$> toFilePath <$> getUnderlying
-  let coqFileName = path </> name
-  coqdoc coqFileName >>= postProcessPost (Just $ gitHubBlobPath ++ "/" ++ coqFileName)
+  return $ path </> name
 
-postProcessPost :: Maybe String -> Item String -> Compiler (Item String)
-postProcessPost gitHubUrl item = do
-  gitHubLink <- case gitHubUrl of
-    Just url -> do
-      linkTemplate <- loadBody "templates/github-link.html"
-      applyTemplateWith (\_ _ -> return url) linkTemplate ()
-    Nothing -> return ""
-  let ctx = constField "github" gitHubLink `mappend` postCtx
+gitHubBlobPath = "https://github.com/arthuraa/poleiro/blob/master"
 
-  return item >>=
-    saveSnapshot "content" >>=
-    loadAndApplyTemplate "templates/post.html" ctx >>=
-    loadAndApplyTemplate "templates/main.html" defaultContext >>=
-    relativizeUrls
+gitHubField :: Context a
+gitHubField = field "github" $ \item -> do
+  extension <- getUnderlyingExtension
+  if extension == ".coqpost" then
+    do coqFileName <- getCoqFileName
+       let url = gitHubBlobPath ++ "/" ++ coqFileName
+       linkTemplate <- loadBody "templates/github-link.html"
+       applyTemplateWith (\_ _ -> return url) linkTemplate ()
+    else return ""
+
+coqPost :: Compiler (Item String)
+coqPost =
+  getCoqFileName >>= coqdoc
+
+postProcessPost :: Item String -> Compiler (Item String)
+postProcessPost =
+  saveSnapshot "content" >=>
+  loadAndApplyTemplate "templates/post.html" postCtx  >=>
+  loadAndApplyTemplate "templates/main.html" defaultContext >=>
+  relativizeUrls
 
 --------------------------------------------------------------------------------
 main :: IO ()
@@ -75,11 +80,11 @@ main = hakyll $ do
 
     match "posts/*.coqpost" $ do
         route $ setExtension "html"
-        compile $ coqPost
+        compile $ coqPost >>= postProcessPost
 
     match "posts/*.md" $ do
         route $ setExtension "html"
-        compile $ pandocCompiler >>= postProcessPost Nothing
+        compile $ pandocCompiler >>= postProcessPost
 
     create ["archives.html"] $ do
       route idRoute
@@ -124,6 +129,7 @@ main = hakyll $ do
 --------------------------------------------------------------------------------
 postCtx :: Context String
 postCtx =
+    gitHubField `mappend`
     dateField "date" "%B %e, %Y" `mappend`
     defaultContext
 

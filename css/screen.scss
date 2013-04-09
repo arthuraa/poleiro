@@ -4,6 +4,7 @@
 @import "compass/typography/links/link-colors";
 @import "compass/typography/links/unstyled-link";
 @import "compass/typography/links/hover-link";
+@import "compass/utilities/general/float";
 
 $inner-padding: 40px;
 $main-color: hsl(55, 50, 75%);
@@ -94,6 +95,12 @@ nav {
         font-size: 1.75em;
         a.comments {
             color: inherit;
+        }
+        a.github {
+            @include float-right;
+            img {
+                vertical-align: middle;
+            }
         }
         margin-bottom: 15px;
     }
