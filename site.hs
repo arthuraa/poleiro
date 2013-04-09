@@ -6,6 +6,7 @@ import qualified Data.Map            as M
 import           Data.Time.Format    (parseTime)
 import           Data.List           (stripPrefix)
 import           Data.Char           (toLower, isAlphaNum)
+import           Data.Maybe          (fromJust)
 import           Control.Monad
 import           Hakyll
 import           System.Process
@@ -38,27 +39,27 @@ coqdoc coqFileName = do
       (Just url', Just route) -> "/" ++ route ++ url'
       _ -> url
 
-getCoqFileName :: Compiler String
-getCoqFileName = do
-  name <- trim <$> itemBody <$> getResourceBody
-  path <- takeDirectory <$> toFilePath <$> getUnderlying
-  return $ path </> name
+getCoqFileName :: Item a -> Compiler (Maybe FilePath)
+getCoqFileName item = do
+  let ident = itemIdentifier item
+      path = takeDirectory $ toFilePath ident
+  fmap (path </>) <$> getMetadataField ident "coqfile"
 
 gitHubBlobPath = "https://github.com/arthuraa/poleiro/blob/master"
 
 gitHubField :: Context a
 gitHubField = field "github" $ \item -> do
-  extension <- getUnderlyingExtension
-  if extension == ".coqpost" then
-    do coqFileName <- getCoqFileName
-       let url = gitHubBlobPath ++ "/" ++ coqFileName
-       linkTemplate <- loadBody "templates/github-link.html"
-       applyTemplateWith (\_ _ -> return url) linkTemplate ()
-    else return ""
+  coqFileName <- getCoqFileName item
+  case coqFileName of
+    Just coqFileName -> do
+      let url = gitHubBlobPath ++ "/" ++ coqFileName
+      linkTemplate <- loadBody "templates/github-link.html"
+      applyTemplateWith (\_ _ -> return url) linkTemplate ()
+    Nothing -> return ""
 
 coqPost :: Compiler (Item String)
 coqPost =
-  getCoqFileName >>= coqdoc
+  getResourceString >>= getCoqFileName >>= (return . fromJust) >>= coqdoc
 
 postProcessPost :: Item String -> Compiler (Item String)
 postProcessPost =
