@@ -1,17 +1,13 @@
 --------------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
 import           Control.Applicative ((<$>))
-import           Data.Monoid         (mappend, mconcat)
-import qualified Data.Map            as M
-import           Data.Time.Format    (parseTime)
+import           Data.Monoid         (mappend)
 import           Data.List           (stripPrefix)
-import           Data.Char           (toLower, isAlphaNum)
 import           Data.Maybe          (fromJust)
 import           Control.Monad
 import           Hakyll
 import           System.Process
 import           System.FilePath     (takeBaseName, (</>), takeDirectory)
-import           Text.Regex
 
 compass :: Compiler (Item String)
 compass =
