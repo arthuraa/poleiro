@@ -20,17 +20,15 @@ compass =
 coqdoc :: String -> Compiler (Item String)
 coqdoc coqFileName = do
   route <- getUnderlying >>= getRoute
-  path <- takeDirectory <$> toFilePath <$> getUnderlying
-  let coqFileName' = path </> coqFileName
   unsafeCompiler $
-    readProcess "coqc" [ coqFileName' ] ""
+    readProcess "coqc" [ coqFileName ] ""
   body <- unsafeCompiler $
           readProcess "coqdoc" [ "--no-index"
                                , "--stdout"
                                , "--body-only"
                                , "--parse-comments"
                                , "-s"
-                               , coqFileName' ] ""
+                               , coqFileName ] ""
   let basename = takeBaseName coqFileName
   makeItem $ flip withUrls body $ \url ->
     -- coqdoc apparently doesn't allow us to change the links of the
@@ -40,8 +38,6 @@ coqdoc coqFileName = do
       (Just url', Just route) -> "/" ++ route ++ url'
       _ -> url
 
-coqPost :: Compiler (Item String)
-coqPost = (trim <$> itemBody <$> getResourceBody) >>= coqdoc
 
 postProcessPost :: Item String -> Compiler (Item String)
 postProcessPost =
@@ -49,6 +45,13 @@ postProcessPost =
   loadAndApplyTemplate "templates/post.html" postCtx >=>
   loadAndApplyTemplate "templates/main.html" defaultContext >=>
   relativizeUrls
+
+coqPost :: Compiler (Item String)
+coqPost = do
+  name <- trim <$> itemBody <$> getResourceBody
+  path <- takeDirectory <$> toFilePath <$> getUnderlying
+  let coqFileName = path </> name
+  coqdoc coqFileName
 
 --------------------------------------------------------------------------------
 main :: IO ()
