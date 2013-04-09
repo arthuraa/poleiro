@@ -64,7 +64,7 @@ header {
     h2 {
         font-size: 1.6em;
     }
-
+    border-bottom: solid 1px (0.7 * $header-color1);
 }
 
 nav {
@@ -87,6 +87,7 @@ nav {
 }
 
 #main {
+    border-top: solid 1px #bbb;
     padding: $inner-padding;
     background-color: $content-background-color;
     display: block;
