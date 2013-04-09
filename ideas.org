@@ -1,7 +1,17 @@
-* DONE Read and write numbers, prove it correct
-* DONE Read hex numbers
-* Type-safe printf
-* Prop vs. bool
-* Write a function to "compute" the type of a term.
-* Formalize the IO monad in Coq and extract it.
-* Convertibility
+* Posts
+** DONE Read and write numbers, prove it correct
+** DONE Read hex numbers
+** Type-safe printf
+** Prop vs. bool
+** Write a function to "compute" the type of a term.
+** Formalize the IO monad in Coq and extract it.
+** Convertibility
+
+* Other
+** DONE Add GitHub link for each post
+** Handle inner paragraphs properly (i.e. output <p></p> tags)
+** Insert output of commands like Check and Print automatically
+** Use same syntax highlight for wrong Coq code
+** Make Hakyll handle .v dependencies correctly
+** (Leonidas) Comments in the middle of proofs might make them hard to read. (Antal) It is actually good.
+** Get nice output for code that doesn't typecheck.
