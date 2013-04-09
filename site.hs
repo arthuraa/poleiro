@@ -38,20 +38,29 @@ coqdoc coqFileName = do
       (Just url', Just route) -> "/" ++ route ++ url'
       _ -> url
 
-
-postProcessPost :: Item String -> Compiler (Item String)
-postProcessPost =
-  saveSnapshot "content" >=>
-  loadAndApplyTemplate "templates/post.html" postCtx >=>
-  loadAndApplyTemplate "templates/main.html" defaultContext >=>
-  relativizeUrls
+gitHubBlobPath = "https://github.com/arthuraa/poleiro/blob/master"
 
 coqPost :: Compiler (Item String)
 coqPost = do
   name <- trim <$> itemBody <$> getResourceBody
   path <- takeDirectory <$> toFilePath <$> getUnderlying
   let coqFileName = path </> name
-  coqdoc coqFileName
+  coqdoc coqFileName >>= postProcessPost (Just $ gitHubBlobPath ++ "/" ++ coqFileName)
+
+postProcessPost :: Maybe String -> Item String -> Compiler (Item String)
+postProcessPost gitHubUrl item = do
+  gitHubLink <- case gitHubUrl of
+    Just url -> do
+      linkTemplate <- loadBody "templates/github-link.html"
+      applyTemplateWith (\_ _ -> return url) linkTemplate ()
+    Nothing -> return ""
+  let ctx = constField "github" gitHubLink `mappend` postCtx
+
+  return item >>=
+    saveSnapshot "content" >>=
+    loadAndApplyTemplate "templates/post.html" ctx >>=
+    loadAndApplyTemplate "templates/main.html" defaultContext >>=
+    relativizeUrls
 
 --------------------------------------------------------------------------------
 main :: IO ()
@@ -66,11 +75,11 @@ main = hakyll $ do
 
     match "posts/*.coqpost" $ do
         route $ setExtension "html"
-        compile $ coqPost >>= postProcessPost
+        compile $ coqPost
 
     match "posts/*.md" $ do
         route $ setExtension "html"
-        compile $ pandocCompiler >>= postProcessPost
+        compile $ pandocCompiler >>= postProcessPost Nothing
 
     create ["archives.html"] $ do
       route idRoute
