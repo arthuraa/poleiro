@@ -18,6 +18,7 @@ $heading-size-ratio: 0.66;
 $paragraph-spacing: 20px;
 
 $headings-font: "Source Sans Pro";
+$main-font: "Times New Roman", serif;
 
 body {
     background: $main-color url("/images/noise.png");
@@ -26,6 +27,7 @@ body {
     margin: 0 auto;
     line-height: 1.5;
     color: $text-color;
+    font-family: $main-font;
 }
 
 #page {
@@ -174,6 +176,7 @@ article .doc {
 .doc .inlinecode {
     display: inline;
     color: rgb(30%,30%,70%);
+    font-size: 1.0em;
     font-family: monospace;
 }
 
@@ -202,7 +205,7 @@ article .doc {
 
 .code {
     display: block;
-    margin-left: 15px;
+    margin: 20px;
     font-size: 110%;
     font-family: monospace;
     line-height: 1.5;
