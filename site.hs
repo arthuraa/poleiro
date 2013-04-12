@@ -108,16 +108,19 @@ main = hakyll $ do
         route idRoute
         compile $ do
             let indexCtx = field "posts" $ const $ recentPostList 3
+                ctx = constField "title" "Main" `mappend` postCtx
 
             getResourceBody
                 >>= applyAsTemplate indexCtx
-                >>= loadAndApplyTemplate "templates/main.html" postCtx
+                >>= loadAndApplyTemplate "templates/main.html" ctx
                 >>= relativizeUrls
 
     match "about.md" $ do
         route $ setExtension "html"
-        compile $ pandocCompiler
-            >>= loadAndApplyTemplate "templates/main.html" defaultContext
+        compile $ do
+          let aboutCtx = constField "title" "About" `mappend` defaultContext
+          pandocCompiler
+            >>= loadAndApplyTemplate "templates/main.html" aboutCtx
             >>= relativizeUrls
 
     match "templates/*" $ compile templateCompiler
