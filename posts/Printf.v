@@ -232,11 +232,13 @@ Proof. reflexivity. Qed.
     The [parseFormat] function below tries to read a [format],
     returning [Some f] if the [string] argument represents [f], and
     [None] if there was a parse error. [parseFormatSize] is used to
-    read the [%<n>d] directives. *)
+    read the [%<n>d] directives. The auxiliary function [addDir] adds
+    a directive to an [option format] when possible, returning [None]
+    otherwise. *)
 
-Definition consOpt {A} (x : A) (o : option (list A)) : option (list A) :=
+Definition addDir (o : option format) (dir : directive) : option format :=
   match o with
-    | Some xs => Some (x :: xs)
+    | Some f => Some (dir :: f)
     | None => None
   end.
 
@@ -245,21 +247,21 @@ Fixpoint parseFormat (s : string) : option format :=
     | "" => Some []
     | "%" ::: s' =>
       match s' with
-        | "%" ::: s'' => consOpt (DLit "%"%char) (parseFormat s'')
-        | "b" ::: s'' => consOpt DBool (parseFormat s'')
-        | "s" ::: s'' => consOpt DString (parseFormat s'')
-        | "c" ::: s'' => consOpt DChar (parseFormat s'')
-        | "d" ::: s'' => consOpt (DNum None) (parseFormat s'')
+        | "%" ::: s'' => addDir (parseFormat s'') (DLit "%")
+        | "b" ::: s'' => addDir (parseFormat s'') DBool
+        | "s" ::: s'' => addDir (parseFormat s'') DString
+        | "c" ::: s'' => addDir (parseFormat s'') DChar
+        | "d" ::: s'' => addDir (parseFormat s'') (DNum None)
         | _ => parseFormatSize s' 0
       end
     | c ::: s' =>
-      consOpt (DLit c) (parseFormat s')
+      addDir (parseFormat s') (DLit c)
   end
 
 with parseFormatSize (s : string) (acc : nat) : option format :=
        match s with
          | "" => None
-         | "d" ::: s' => consOpt (DNum (Some acc)) (parseFormat s')
+         | "d" ::: s' => addDir (parseFormat s') (DNum (Some acc))
          | c ::: s' =>
            match digitToNat c with
              | Some n => parseFormatSize s' (10 * acc + n)
