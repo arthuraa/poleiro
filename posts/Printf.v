@@ -275,6 +275,14 @@ Example parseFormat1 :
   parseFormat "%d%4da" = Some [DNum None, DNum (Some 4), DLit "a"].
 Proof. reflexivity. Qed.
 
+Example parseFormat2 :
+  parseFormat "%ca%s%" = None.
+Proof. reflexivity. Qed.
+
+Example parseFormat3 :
+  parseFormat "%s%b" = Some [DString, DBool].
+Proof. reflexivity. Qed.
+
 (** ** Putting the pieces together
 
     Using [parseFormat], we can write a convenient wrapper for
