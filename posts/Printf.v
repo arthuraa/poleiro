@@ -285,20 +285,15 @@ Proof. reflexivity. Qed.
 
 (** ** Putting the pieces together
 
-    Using [parseFormat], we can write a convenient wrapper for
-    [printfImpl]. We can use the same trick as
-    #<a href="/posts/2013-04-03-parse-errors-as-type-errors.html">before</a># to
-    ensure that invalid format strings will be noticed right away. *)
+    Using [parseFormat], we can now write a convenient wrapper for
+    [printfImpl]. Just as we did in the #<a
+    href="/posts/2013-04-03-parse-errors-as-type-errors.html">previous
+    post</a>#, we ensure that invalid format strings are detected
+    right away by producing a value of a different type. *)
 
 Inductive printfError := InvalidFormat.
 
-Definition printfT (s : string) : Type :=
-  match parseFormat s with
-    | Some f => formatType f
-    | None => printfError
-  end.
-
-Definition printf (s : string) : printfT s :=
+Definition printf (s : string) :=
   match parseFormat s as o
                       return match o with
                                | Some f => formatType f
