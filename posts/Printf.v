@@ -296,9 +296,7 @@ Definition printf (s : string) : printfT s :=
     | None => InvalidFormat
   end.
 
-Definition greet s d m y :=
-  printf "Hello %s, your birthday is %2d/%2d/%d." s d m y : string.
+Definition greet name d m y : string :=
+  printf "Hello %s, today is %d/%2d/%2d" name d m y.
 
-Eval compute in greet "Arthur" 2 12 2012.
-
-Eval vm_compute in printf "Hello, I'm %s and I am %2d years old" "Arthur" 2.
+Eval compute in greet "Arthur" 2012 4 13.
