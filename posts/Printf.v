@@ -234,31 +234,35 @@ Proof. reflexivity. Qed.
     [None] if there was a parse error. [parseFormatSize] is used to
     read the [%<n>d] directives. *)
 
-Definition snocK (k : format -> format) (dir : directive) : format -> format :=
-  fun res => k (dir :: res).
+Definition consOpt {A} (x : A) (o : option (list A)) : option (list A) :=
+  match o with
+    | Some xs => Some (x :: xs)
+    | None => None
+  end.
 
-Fixpoint parseFormat (s : string) (k : format -> format) : option format :=
+Fixpoint parseFormat (s : string) : option format :=
   match s with
-    | "" => Some (k [])
+    | "" => Some []
     | "%" ::: s' =>
       match s' with
-        | "%" ::: s'' => parseFormat s'' (snocK k (DLit "%"))
-        | "b" ::: s'' => parseFormat s'' (snocK k DBool)
-        | "s" ::: s'' => parseFormat s'' (snocK k DString)
-        | "c" ::: s'' => parseFormat s'' (snocK k DChar)
-        | "d" ::: s'' => parseFormat s'' (snocK k (DNum None))
-        | _ => parseFormatSize s' k 0
+        | "%" ::: s'' => consOpt (DLit "%"%char) (parseFormat s'')
+        | "b" ::: s'' => consOpt DBool (parseFormat s'')
+        | "s" ::: s'' => consOpt DString (parseFormat s'')
+        | "c" ::: s'' => consOpt DChar (parseFormat s'')
+        | "d" ::: s'' => consOpt (DNum None) (parseFormat s'')
+        | _ => parseFormatSize s' 0
       end
-    | c ::: s' => parseFormat s' (snocK k (DLit c))
+    | c ::: s' =>
+      consOpt (DLit c) (parseFormat s')
   end
 
-with parseFormatSize (s : string) (k : format -> format) (acc : nat) : option format :=
+with parseFormatSize (s : string) (acc : nat) : option format :=
        match s with
          | "" => None
-         | "d" ::: s' => parseFormat s' (snocK k (DNum (Some acc)))
+         | "d" ::: s' => consOpt (DNum (Some acc)) (parseFormat s')
          | c ::: s' =>
            match digitToNat c with
-             | Some n => parseFormatSize s' k (10 * acc + n)
+             | Some n => parseFormatSize s' (10 * acc + n)
              | None => None
            end
        end.
@@ -266,8 +270,7 @@ with parseFormatSize (s : string) (k : format -> format) (acc : nat) : option fo
 (** We can test our function in some simple cases. *)
 
 Example parseFormat1 :
-  parseFormat "%d%4da" (fun res => res) =
-  Some [DNum None, DNum (Some 4), DLit "a"].
+  parseFormat "%d%4da" = Some [DNum None, DNum (Some 4), DLit "a"].
 Proof. reflexivity. Qed.
 
 (** ** Putting the pieces together
@@ -280,13 +283,13 @@ Proof. reflexivity. Qed.
 Inductive printfError := InvalidFormat.
 
 Definition printfT (s : string) : Type :=
-  match parseFormat s (fun res => res) with
+  match parseFormat s with
     | Some f => formatType f
     | None => printfError
   end.
 
 Definition printf (s : string) : printfT s :=
-  match parseFormat s (fun res => res) as o
+  match parseFormat s as o
                       return match o with
                                | Some f => formatType f
                                | None => printfError
