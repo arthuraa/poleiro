@@ -23,7 +23,7 @@ Open Scope char_scope.
     be significantly challenging. The number and types of arguments
     expected by [printf] depend on the format parameter passed to it,
     something that is incompatible with many static type systems. In
-    C, the problem is solved by allowing funcitons to take a variable
+    C, the problem is solved by allowing functions to take a variable
     number of arguments, but there is no way for the type system to
     ensure that the number and types of those arguments match the
     specification given in the format string. OCaml has its own
