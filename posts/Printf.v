@@ -37,9 +37,9 @@ Open Scope char_scope.
 
 (** ** Directives and format
 
-    The power of [printf] comes from how succint strings are for
-    writing output formats. The format argument looks very similar to
-    the final output that we expect, which makes calls to the function
+    One reason for [printf]'s popularity is that the output format can
+    be written succinctly using plain strings. The format argument
+    visually resembles the output of the function, which makes code
     easy to understand.
 
     Even though we want to use Coq [string]s for the format argument,
