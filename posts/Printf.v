@@ -40,7 +40,7 @@ Open Scope char_scope.
     The power of [printf] comes from how succint strings are for
     writing output formats. The format argument looks very similar to
     the final output that we expect, which makes calls to the function
-    very easy to understand.
+    easy to understand.
 
     Even though we want to use Coq [string]s for the format argument,
     it is more convenient to first implement [printf] using a separate
@@ -70,7 +70,9 @@ Definition format := list directive.
     controls the length of the number we will print. If [s = Some n],
     then we output exactly the [n] least-significant digits of the
     number, padding it with zeros if necessary. Otherwise, if [s =
-    None], we just print the whole number.
+    None], we just print the whole number. Thus, the number [4] should
+    be printed as [4] using the [DNum None], but as [04] using [DNum
+    (Some 2)].
 
     Given a format [f], we can compute the type that [printf f] should
     have as follows: *)
@@ -210,12 +212,12 @@ Fixpoint printfImpl (f : format) (k : string -> string) : formatType f :=
     continuation [fun res => res], that will receive the value built
     by [printfImpl] and return it as-is. *)
 
-Example printfImpl1 :
+Example printfImplTest1 :
   printfImpl [DNum None, DString] (fun res => res)
              42 "This is a string" = "42This is a string".
 Proof. reflexivity. Qed.
 
-Example printfImpl2 :
+Example printfImplTest2 :
   printfImpl [DNum (Some 2), DLit "/", DNum (Some 2)] (fun res => res)
              2 4 = "02/04".
 Proof. reflexivity. Qed.
@@ -271,15 +273,15 @@ with parseFormatSize (s : string) (acc : nat) : option format :=
 
 (** We can test our function in some simple cases. *)
 
-Example parseFormat1 :
+Example parseFormatTest1 :
   parseFormat "%d%4da" = Some [DNum None, DNum (Some 4), DLit "a"].
 Proof. reflexivity. Qed.
 
-Example parseFormat2 :
+Example parseFormatTest2 :
   parseFormat "%ca%s%" = None.
 Proof. reflexivity. Qed.
 
-Example parseFormat3 :
+Example parseFormatTest3 :
   parseFormat "%s%b" = Some [DString, DBool].
 Proof. reflexivity. Qed.
 
@@ -289,22 +291,55 @@ Proof. reflexivity. Qed.
     [printfImpl]. Just as we did in the #<a
     href="/posts/2013-04-03-parse-errors-as-type-errors.html">previous
     post</a>#, we ensure that invalid format strings are detected
-    right away by producing a value of a different type. *)
+    right away by producing a value of a different type when we hit a
+    parse error. *)
 
 Inductive printfError := InvalidFormat.
 
-Definition printf (s : string) :=
-  match parseFormat s as o
-                      return match o with
-                               | Some f => formatType f
-                               | None => printfError
-                             end
-  with
+Definition printfOpt (o : option format) : match o with
+                                             | Some f => formatType f
+                                             | None => printfError
+                                           end :=
+  match o with
     | Some f => printfImpl f (fun res => res)
     | None => InvalidFormat
   end.
 
-Definition greet name d m y : string :=
-  printf "Hello %s, today is %d/%2d/%2d" name d m y.
+Definition printf (s : string) := printfOpt (parseFormat s).
 
-Eval compute in greet "Arthur" 2012 4 13.
+(** In spite of its non-trivial type, using our function is simple, as
+    the examples below show. *)
+
+Definition greet name y m d : string :=
+  printf "Hello %s, today is %d/%2d/%2d" name y m d.
+
+Example greetTest1 : greet "readers" 2013 4 16 =
+                     "Hello readers, today is 2013/04/16".
+Proof. reflexivity. Qed.
+
+Definition tableRow name value : string :=
+  printf "<tr><td>%s</td><td>%b</td></tr>" name value.
+
+Example tableRowTest1 : tableRow "x1" true =
+                        "<tr><td>x1</td><td>true</td></tr>".
+Proof. reflexivity. Qed.
+
+(** Trying to pass the wrong number of arguments to [printf], or
+    giving it arguments of the wrong type, will result in a type
+    error. *)
+
+(* Example greetTest2 : string := greet 2013 4 16 "readers". *)
+
+(* Error: The term "2013" has type "nat" while it is expected to have type
+  "string". *)
+
+(* Example tableRowTest2 : string := tableRow "x1". *)
+
+(* Error: The term "tableRow "x1"" has type "bool -> string"
+   while it is expected to have type "string". *)
+
+(** ** Summary
+
+    We've seen how dependent types and type computation make it
+    possible to implement a type-safe version of [printf] in Coq with
+    relative ease. *)
