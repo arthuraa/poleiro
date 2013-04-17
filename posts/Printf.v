@@ -12,35 +12,29 @@ Open Scope list_scope.
 Open Scope char_scope.
 (* end hide *)
 
-(** The widespread [printf] family of functions offers a very
-    convenient interface for formatted output. While the function
-    itself originated in the C programming language, the idea of
-    having formatted output controlled by a parameter predates it, and
-    functions with similar interfaces are present in other
-    languages, such as the [format] function in Common Lisp.
+(** Many languages provide mechanisms for formatted output, with C's
+    [printf] undoubtedly being the most influential one. Some of these
+    functions allow a format to be specified conveniently using a
+    concise and intuitive syntax, which is probably part of the reason
+    for them being so popular. [printf], for instance, uses plain
+    strings for its format.
 
-    In spite of being so popular, adding a [printf]-like function may
-    be significantly challenging. The number and types of arguments
-    expected by [printf] depend on the format parameter passed to it,
-    something that is incompatible with many static type systems. In
-    C, the problem is solved by allowing functions to take a variable
-    number of arguments, but there is no way for the type system to
-    ensure that the number and types of those arguments match the
-    specification given in the format string. OCaml has its own
-    version of [printf], which does track the dependencies between the
-    format and the rest of the arguments, at the cost of extending the
-    language with an _ad-hoc_ format type.
+    Unfortunately, this convenience often comes with a price. In C, a
+    mismatch between the output format and the other arguments results
+    in incorrect behavior. This non-trivial dependency can't be
+    expressed in the language's type system and requires additional
+    compiler checks to be enforced. Other languages suffer from
+    similar problems. Haskell's standard [printf] causes a run-time
+    error when a format mismatch occurs. OCaml enforces that format
+    and arguments are compatible at compile-time at the cost of
+    extending the language with an _ad-hoc_ [format].
 
-    In this post, we will see how we can use simple dependently typed
-    programming in Coq to build a very nice and safe implementation of
-    [printf]. *)
+    TODO: Talk about other approaches that give up on strings.
+
+    We will see how we can use simple dependently typed programming in
+    Coq to build a type-safe implementation of [printf]. *)
 
 (** ** Directives and format
-
-    One reason for [printf]'s popularity is that the output format can
-    be written succinctly using plain strings. The format argument
-    visually resembles the output of the function, which makes code
-    easy to understand.
 
     Even though we want to use Coq [string]s for the format argument,
     it is more convenient to first implement [printf] using a separate
