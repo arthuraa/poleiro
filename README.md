@@ -1,5 +1,5 @@
 Poleiro is a blog about the [Coq proof assistant][1]. You can read the
-posts at http://www.cis.upenn.edu/~aarthur/poleiro.
+posts at http://poleiro.info.
 
 # Build requirements
 
