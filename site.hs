@@ -3,20 +3,19 @@
 import           Control.Applicative ((<$>))
 import           Data.Monoid         (mappend)
 import           Data.List           (stripPrefix)
-import           Data.Maybe          (fromJust)
 import           Control.Monad
 import           Hakyll
 import           System.Process
-import           System.FilePath     (takeBaseName, (</>))
+import           System.FilePath     ((</>))
 
 compass :: Compiler (Item String)
 compass =
   getResourceString >>=
   withItemBody (unixFilter "sass" ["-s", "--scss", "--compass"])
 
-coqdoc :: String -> Compiler (Item String)
-coqdoc coqFileName = do
-  route <- getUnderlying >>= getRoute
+coqdoc :: Compiler (Item String)
+coqdoc = do
+  coqFileName <- toFilePath <$> getUnderlying
   unsafeCompiler $
     readProcess "coqc" [ coqFileName ] ""
   body <- unsafeCompiler $
@@ -26,19 +25,14 @@ coqdoc coqFileName = do
                                , "--parse-comments"
                                , "-s"
                                , coqFileName ] ""
-  let basename = takeBaseName coqFileName
-  makeItem $ flip withUrls body $ \url ->
-    -- coqdoc apparently doesn't allow us to change the links of the
-    -- generated HTML that point to itself. Therefore, we must do it
-    -- by hand.
-    case (stripPrefix (basename ++ ".html") url, route) of
-      (Just url', Just route) -> "/" ++ route ++ url'
-      _ -> url
+  makeItem body
+
+coqPath = ("theories" </>)
 
 getCoqFileName :: Item a -> Compiler (Maybe FilePath)
 getCoqFileName item = do
   let ident = itemIdentifier item
-  fmap ("theories" </>) <$> getMetadataField ident "coqfile"
+  fmap coqPath <$> getMetadataField ident "coqfile"
 
 gitHubBlobPath = "https://github.com/arthuraa/poleiro/blob/master"
 
@@ -53,8 +47,23 @@ gitHubField = field "github" $ \item -> do
     Nothing -> return ""
 
 coqPost :: Compiler (Item String)
-coqPost =
-  getResourceString >>= getCoqFileName >>= (return . fromJust) >>= coqdoc
+coqPost = do
+  ident <- getUnderlying
+  route <- getRoute ident
+  coqFileName <- getMetadataField ident "coqfile"
+  case coqFileName of
+    Just coqFileName ->
+      let fullName = coqPath coqFileName in do
+        postBody <- loadBody $ fromFilePath fullName
+        makeItem $ flip withUrls postBody $ \url ->
+          -- coqdoc apparently doesn't allow us to change the links of the
+          -- generated HTML that point to itself. Therefore, we must do it
+          -- by hand.
+          case (stripPrefix (coqFileName ++ ".html") url, route) of
+            (Just url', Just route) -> "/" ++ route ++ url'
+            _ -> url
+
+    Nothing -> error "Couldn't find \"coqfile\" metadata field"
 
 postProcessPost :: Item String -> Compiler (Item String)
 postProcessPost =
@@ -73,6 +82,9 @@ main = hakyll $ do
     match "images/*" $ do
         route idRoute
         compile copyFileCompiler
+
+    match "theories/*.v" $ do
+        compile coqdoc
 
     match "posts/*.coqpost" $ do
         route $ setExtension "html"
