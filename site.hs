@@ -149,8 +149,8 @@ recentPostList n = do
 feedConfiguration :: FeedConfiguration
 feedConfiguration = FeedConfiguration
     { feedTitle       = "Poleiro: latest posts"
-    , feedDescription = ""
+    , feedDescription = "A blog about the Coq proof assistant"
     , feedAuthorName  = "Arthur Azevedo de Amorim"
     , feedAuthorEmail = ""
-    , feedRoot        = "http://www.cis.upenn.edu/~aarthur/poleiro"
+    , feedRoot        = "http://poleiro.info"
     }
