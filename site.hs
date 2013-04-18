@@ -7,7 +7,7 @@ import           Data.Maybe          (fromJust)
 import           Control.Monad
 import           Hakyll
 import           System.Process
-import           System.FilePath     (takeBaseName, (</>), takeDirectory)
+import           System.FilePath     (takeBaseName, (</>))
 
 compass :: Compiler (Item String)
 compass =
@@ -38,8 +38,7 @@ coqdoc coqFileName = do
 getCoqFileName :: Item a -> Compiler (Maybe FilePath)
 getCoqFileName item = do
   let ident = itemIdentifier item
-      path = takeDirectory $ toFilePath ident
-  fmap (path </>) <$> getMetadataField ident "coqfile"
+  fmap ("theories" </>) <$> getMetadataField ident "coqfile"
 
 gitHubBlobPath = "https://github.com/arthuraa/poleiro/blob/master"
 
