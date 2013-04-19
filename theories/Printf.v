@@ -14,10 +14,10 @@ Open Scope char_scope.
 
 (** Many languages provide mechanisms for formatted output, with C's
     [printf] undoubtedly being the most influential one. Some of these
-    functions allow a format to be specified conveniently using a
-    concise and intuitive syntax, which is probably part of the reason
-    for them being so popular. [printf], for instance, uses plain
-    strings for its format.
+    functions allow a format to be specified using a concise and
+    intuitive syntax, which is probably part of the reason for them
+    being so popular. For [printf], for instance, a format is
+    described using just a plain string.
 
     Unfortunately, this convenience often comes with a price. In C, a
     mismatch between the output format and the other arguments results
@@ -25,16 +25,30 @@ Open Scope char_scope.
     expressed in the language's type system and requires additional
     compiler checks to be enforced. Other languages suffer from
     similar problems. Haskell's standard [printf] causes a run-time
-    error when a format mismatch occurs. OCaml enforces that format
-    and arguments are compatible at compile-time at the cost of
-    extending the language with an _ad-hoc_ [format].
+    error when a format mismatch occurs. OCaml is able to enforce that
+    format and arguments are compatible at compile-time, but at the
+    cost of extending the language with an _ad-hoc_ [format] type that
+    is also represented as strings. Other approaches solve the problem
+    by adopting different representations for the output format, which
+    can make it slightly less convenient to specify. In #<a
+    href="http://www.brics.dk/RS/98/12/BRICS-RS-98-12.pdf">Functional
+    Unparsing</a>#, Olivier Danvy showed how to implement an analogue
+    of [printf] using formatting combinators. More recently, Oleg
+    Kieslyov used delimited control operators to implement his own
+    type-safe version of [printf] in #<a
+    href="http://okmij.org/ftp/Haskell/ShiftResetGenuine.hs">Haskell</a>#,
+    an idea that has also been ported to #<a
+    href="http://mattam.org/repos/coq/misc/shiftreset/GenuineShiftReset.html">Coq</a>#
+    by Matthieu Sozeau.
 
-    TODO: Talk about other approaches that give up on strings.
+    It is a shame that we should have to extend our language in an
+    _ad-hoc_ manner just to get a formatting function that is both
+    safe and convenient to use. We will see how we can use Coq's
+    expressive type system to describe the dependency between a format
+    string and the arguments it requires, and implement a version of
+    [sprintf] that doesn't suffer from the aforementioned issues.
 
-    We will see how we can use simple dependently typed programming in
-    Coq to build a type-safe implementation of [printf]. *)
-
-(** ** Directives and format
+    ** Directives and format
 
     Even though we want to use Coq [string]s for the format argument,
     it is more convenient to first implement [printf] using a separate
