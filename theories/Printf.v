@@ -34,14 +34,14 @@ an idea that has also been ported to #<a
 href="http://mattam.org/repos/coq/misc/shiftreset/GenuineShiftReset.html">Coq</a>#
 by Matthieu Sozeau.
 
-It is a shame that we should have to extend our language in an
-_ad-hoc_ manner just to get a formatting function that is both safe
-and convenient to use. We will see how we can use Coq's expressive
-type system to describe the dependency between a format string and the
-arguments it requires, and implement a version of [sprintf] that
-doesn't suffer from the aforementioned issues.
+It would be a shame if we had to extend our language in an _ad-hoc_
+manner just to get safe and convenient formatting. We will see how we
+can use Coq's expressive type system to describe the dependency
+between a format string and the arguments it requires, and implement a
+version of [sprintf] that doesn't suffer from the aforementioned
+issues.
 
-Let's begin by defining some convenient notations for lists and
+Let's begin by defining some useful notations for lists and
 strings. *)
 
 Notation "[ ]" := nil : list_scope.
@@ -55,9 +55,9 @@ Open Scope char_scope.
 (** ** Directives and format
 
 Before working directly with strings, we will define a new data type
-to describe the output format and use it to implement a preliminary
-version of [sprintf]. As we shall see, this will help us express the
-not-so-trivial type of [sprintf] and simplify our
+to describe an output format, and then use it to implement a
+preliminary version of [sprintf]. As we shall see, this will help us
+express the not-so-trivial type of [sprintf] and simplify our
 implementation. Later, we will write a separate function to convert
 [string]s to this new type, and combine both programs to obtain our
 final result.
@@ -77,7 +77,7 @@ Inductive directive : Type :=
 | DChar : directive.
 
 (** Directive [DLit c] outputs the literal character [c], while [DNum
-s] [DBool], [DString] and [DChar] take an argument of the
+s], [DBool], [DString], and [DChar] take an argument of the
 corresponding type and print it. The [s] field of [DNum s] controls
 how its argument should be printed. If [s = Some n], then we output
 exactly the [n] least-significant digits of the number, padding it
@@ -95,14 +95,15 @@ Definition format := list directive.
 As noted above, [sprintf f] should be a function that returns a
 [string] and takes one argument for each directive in [f] that
 requires one. For instance, [sprintf [DBool, DString]] should have
-type [bool -> string -> string].
+type [bool -> string -> string], whereas [sprintf [DLit "a", DLit "b",
+DNum None]] should have type [nat -> string].
 
 This relation is easy to express in Coq using dependent types. Since
 types can be the result of computations, it is possible to write a
 [formatType] function that takes a [format] [f] and returns the type
 of [sprintf f]. Let's begin by defining a function that maps each
 directive to the corresponding argument type. Notice that its result
-type must be an [option], since [DLit] doesn't add arguments. *)
+type must be an [option], since [DLit] doesn't need arguments. *)
 
 Definition directiveType (dir : directive) :=
   match dir with
@@ -139,7 +140,7 @@ Proof. reflexivity. Qed.
 (** ** The implementation
 
 Now that we can express the type of [sprintf], we can try to implement
-it. As a first attempt, we might try something like this:
+it. We might be tempted to try something like this:
 
 [[
 Fixpoint sprintf (f : format) : formatType f :=
@@ -147,7 +148,7 @@ Fixpoint sprintf (f : format) : formatType f :=
     | [] => ""
     | dir :: dirs =>
       match dir with
-        | DLit c => c :: sprintf dirs
+        | DLit c => c ::: sprintf dirs
         (* ... *)
       end
   end.
@@ -247,14 +248,17 @@ Fixpoint sprintf (f : format) (k : string -> string) : formatType f :=
       end
   end.
 
-(** Our implementation mimics the definition of [formatType], to
-ensure that the types will match accordingly. Notice that it is still
-necessary to annotate the return type of the second [match]
-explicitly, because Coq is not able to infer it.
+(** Most directives generate an additional argument to [sprintf] by
+wrapping the recursive call with an anonymous function. Also, notice
+the type annotation on the inner [match]: [return formatType (dir ::
+dirs)]. As one could hope, this mysterious expression is telling Coq
+which type is being returned on each branch of the [match]. Dependent
+types require more sophisticated type inference, and in some cases it
+is necessary to provide these annotations explicitly.
 
 To use [sprintf], we just have to pass it the identity continuation
-[fun res => res], that will receive the value built by [sprintf]
-and return it as-is. *)
+[fun res => res], which will receive the value built by [sprintf] and
+return it as-is. *)
 
 Example sprintfTest1 :
   sprintf [DNum None, DString] (fun res => res)
