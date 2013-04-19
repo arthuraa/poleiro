@@ -13,54 +13,58 @@ Open Scope char_scope.
 (* end hide *)
 
 (** Many languages provide mechanisms for formatted output, with C's
-    [printf] undoubtedly being the most influential one. Some of these
-    functions allow a format to be specified using a concise and
-    intuitive syntax, which is probably part of the reason for them
-    being so popular. For [printf], for instance, a format is
-    described using just a plain string.
+[printf] undoubtedly being the most influential one. Some of these
+functions allow a format to be specified using a concise and intuitive
+syntax, which is probably part of the reason for them being so
+popular. For [printf], for instance, a format is described using just
+a plain string.
 
-    Unfortunately, this convenience often comes with a price. In C, a
-    mismatch between the output format and the other arguments results
-    in incorrect behavior. This non-trivial dependency can't be
-    expressed in the language's type system and requires additional
-    compiler checks to be enforced. Other languages suffer from
-    similar problems. Haskell's standard [printf] causes a run-time
-    error when a format mismatch occurs. OCaml is able to enforce that
-    format and arguments are compatible at compile-time, but at the
-    cost of extending the language with an _ad-hoc_ [format] type that
-    is also represented as strings. Other approaches solve the problem
-    by adopting different representations for the output format, which
-    can make it slightly less convenient to specify. In #<a
-    href="http://www.brics.dk/RS/98/12/BRICS-RS-98-12.pdf">Functional
-    Unparsing</a>#, Olivier Danvy showed how to implement an analogue
-    of [printf] using formatting combinators. More recently, Oleg
-    Kieslyov used delimited control operators to implement his own
-    type-safe version of [printf] in #<a
-    href="http://okmij.org/ftp/Haskell/ShiftResetGenuine.hs">Haskell</a>#,
-    an idea that has also been ported to #<a
-    href="http://mattam.org/repos/coq/misc/shiftreset/GenuineShiftReset.html">Coq</a>#
-    by Matthieu Sozeau.
+Unfortunately, this convenience often comes with a price. In C, a
+mismatch between the output format and the other arguments results in
+incorrect behavior. This non-trivial dependency can't be expressed in
+the language's type system and requires additional compiler checks to
+be enforced. Other languages suffer from similar problems. Haskell's
+standard [printf] causes a run-time error when a format mismatch
+occurs. OCaml is able to enforce that format and arguments are
+compatible at compile-time, but at the cost of extending the language
+with an _ad-hoc_ [format] type that is also represented as
+strings. Other approaches solve the problem by adopting different
+representations for the output format, which can make it slightly less
+convenient to specify. In #<a
+href="http://www.brics.dk/RS/98/12/BRICS-RS-98-12.pdf">Functional
+Unparsing</a>#, Olivier Danvy showed how to implement an analogue of
+[printf] using formatting combinators. More recently, Oleg Kieslyov
+used delimited control operators to implement his own type-safe
+version of [printf] in #<a
+href="http://okmij.org/ftp/Haskell/ShiftResetGenuine.hs">Haskell</a>#,
+an idea that has also been ported to #<a
+href="http://mattam.org/repos/coq/misc/shiftreset/GenuineShiftReset.html">Coq</a>#
+by Matthieu Sozeau.
 
-    It is a shame that we should have to extend our language in an
-    _ad-hoc_ manner just to get a formatting function that is both
-    safe and convenient to use. We will see how we can use Coq's
-    expressive type system to describe the dependency between a format
-    string and the arguments it requires, and implement a version of
-    [sprintf] that doesn't suffer from the aforementioned issues.
+It is a shame that we should have to extend our language in an
+_ad-hoc_ manner just to get a formatting function that is both safe
+and convenient to use. We will see how we can use Coq's expressive
+type system to describe the dependency between a format string and the
+arguments it requires, and implement a version of [sprintf] that
+doesn't suffer from the aforementioned issues.
 
-    ** Directives and format
 
-    Even though we want to use Coq [string]s for the format argument,
-    it is more convenient to first implement [printf] using a separate
-    [format] type. In the final implementation, we will parse the
-    [string] argument as a [format] and pass it to that function.
+** Directives and format
 
-    In C, a [printf] format is a sequence of _directives_. Each
-    directive can be either a literal character, which will be printed
-    verbatim, or a _control sequence_, which instructs the function to
-    print one of its arguments in a certain format. For our version of
-    [printf] we will consider a small set of control sequences, based
-    roughly on the ones available in C. *)
+Before working directly with strings, we will define a new data type
+to describe the output format and use it to implement a preliminary
+version of [sprintf]. As we shall see, this will help us express the
+not-so-trivial type of [sprintf] and simplify our
+implementation. Later, we will write a separate function to convert
+[string]s to this new type, and combine both programs to obtain our
+final result.
+
+Our [format] type is inspired by [printf] formats in C, which can be
+seen as a sequence of _directives_. Each directive can be either a
+literal character, to be printed verbatim, or a _control sequence_,
+which instructs the function to print one of its arguments in a
+certain format. Thus, we begin by defining a [directive] type, loosely
+based upon what is available in C: *)
 
 Inductive directive : Type :=
 | DLit : ascii -> directive
@@ -69,21 +73,22 @@ Inductive directive : Type :=
 | DString : directive
 | DChar : directive.
 
+(** Directive [DLit c] corresponds to the literal character
+[c]. [DBool], [DString] and [DChar] signal that we will output an
+element of the corresponding type.  More interestingly, [DNum s] is
+used to output numbers (i.e., Coq [nat]s). The [s] parameter controls
+the length of the number we will print. If [s = Some n], then we
+output exactly the [n] least-significant digits of the number, padding
+it with zeros if necessary. Otherwise, if [s = None], we just print
+the whole number. Thus, the number [4] should be printed as [4] using
+the [DNum None], but as [04] using [DNum (Some 2)].
+
+Given this definition, the [format] type is straightforward: *)
+
 Definition format := list directive.
 
-(** Directive [DLit c] corresponds to the literal character
-    [c]. [DBool], [DString] and [DChar] signal that we will output an
-    element of the corresponding type.  More interestingly, [DNum s]
-    is used to output numbers (i.e., Coq [nat]s). The [s] parameter
-    controls the length of the number we will print. If [s = Some n],
-    then we output exactly the [n] least-significant digits of the
-    number, padding it with zeros if necessary. Otherwise, if [s =
-    None], we just print the whole number. Thus, the number [4] should
-    be printed as [4] using the [DNum None], but as [04] using [DNum
-    (Some 2)].
-
-    Given a format [f], we can compute the type that [printf f] should
-    have as follows: *)
+(** Given a format [f], we can compute the type that [printf f] should
+have as follows: *)
 
 Fixpoint formatType (f : format) : Type :=
   match f with
@@ -101,11 +106,12 @@ Fixpoint formatType (f : format) : Type :=
 (** Notice that all directives except [DLit] add an argument to the
     type.
 
-    ** The implementation
 
-    Now that we can express the type for a [format], we can try to
-    implement [printf]. As a first attempt, we might try something
-    like this:
+** The implementation
+
+Now that we can express the type for a [format], we can try to
+implement [printf]. As a first attempt, we might try something like
+this:
 
 [[
 Fixpoint printfImpl (f : format) : formatType f :=
@@ -119,18 +125,18 @@ Fixpoint printfImpl (f : format) : formatType f :=
   end.
 ]]
 
-    Alas, this approach doesn't work. The problem here is that our
-    recursive call to [printfImpl] returns a [formatType dirs] instead
-    of a [string], which means that we are unable to add character [c]
-    in front of it.
+Alas, this approach doesn't work. The problem here is that our
+recursive call to [printfImpl] returns a [formatType dirs] instead of
+a [string], which means that we are unable to add character [c] in
+front of it.
 
-    Instead of building the string directly on the body of the match,
-    we will add an auxiliary parameter [k] to [printfImpl]. To make it
-    more efficient, this parameter will be a _continuation_ of type
-    [string -> string] that builds the final output from the result of
-    the recursive calls. For brevity, I've omitted the definition of
-    some auxiliary functions, such as [writeNat], but they can be
-    found in the original [.v] file. *)
+Instead of building the string directly on the body of the match, we
+will add an auxiliary parameter [k] to [printfImpl]. To make it more
+efficient, this parameter will be a _continuation_ of type [string ->
+string] that builds the final output from the result of the recursive
+calls. For brevity, I've omitted the definition of some auxiliary
+functions, such as [writeNat], but they can be found in the original
+[.v] file. *)
 
 (* begin hide *)
 Definition digitToNat (c : ascii) : option nat :=
@@ -212,13 +218,13 @@ Fixpoint printfImpl (f : format) (k : string -> string) : formatType f :=
   end.
 
 (** Our implementation mimics the definition of [formatType], to
-    ensure that the types will match accordingly. Notice that it is
-    still necessary to annotate the return type of the second [match]
-    explicitly, because Coq is not able to infer it.
+ensure that the types will match accordingly. Notice that it is still
+necessary to annotate the return type of the second [match]
+explicitly, because Coq is not able to infer it.
 
-    To use [printfImpl], we just have to pass it the identity
-    continuation [fun res => res], that will receive the value built
-    by [printfImpl] and return it as-is. *)
+To use [printfImpl], we just have to pass it the identity continuation
+[fun res => res], that will receive the value built by [printfImpl]
+and return it as-is. *)
 
 Example printfImplTest1 :
   printfImpl [DNum None, DString] (fun res => res)
@@ -232,19 +238,18 @@ Proof. reflexivity. Qed.
 
 (** ** Strings as format
 
-    Now that we have our first implementation, we will write the code
-    needed to parse the format from a [string]. Our format syntax is
-    inspired by C's own syntax. All characters are interpreted
-    literally, except for [%], which signals the beginning of a
-    control sequence. As in C, we can write [%<n>d], where [<n>] is a
-    number, to specify how many digits we want when printing a [nat].
+Now that we have our first implementation, we will write the code
+needed to parse the format from a [string]. Our format syntax is
+inspired by C's own syntax. All characters are interpreted literally,
+except for [%], which signals the beginning of a control sequence. As
+in C, we can write [%<n>d], where [<n>] is a number, to specify how
+many digits we want when printing a [nat].
 
-    The [parseFormat] function below tries to read a [format],
-    returning [Some f] if the [string] argument represents [f], and
-    [None] if there was a parse error. [parseFormatSize] is used to
-    read the [%<n>d] directives. The auxiliary function [addDir] adds
-    a directive to an [option format] when possible, returning [None]
-    otherwise. *)
+The [parseFormat] function below tries to read a [format], returning
+[Some f] if the [string] argument represents [f], and [None] if there
+was a parse error. [parseFormatSize] is used to read the [%<n>d]
+directives. The auxiliary function [addDir] adds a directive to an
+[option format] when possible, returning [None] otherwise. *)
 
 Definition addDir (o : option format) (dir : directive) : option format :=
   match o with
@@ -295,12 +300,12 @@ Proof. reflexivity. Qed.
 
 (** ** Putting the pieces together
 
-    Using [parseFormat], we can now write a convenient wrapper for
-    [printfImpl]. Just as we did in the #<a
-    href="/posts/2013-04-03-parse-errors-as-type-errors.html">previous
-    post</a>#, we ensure that invalid format strings are detected
-    right away by producing a value of a different type when we hit a
-    parse error. *)
+Using [parseFormat], we can now write a convenient wrapper for
+[printfImpl]. Just as we did in the #<a
+href="/posts/2013-04-03-parse-errors-as-type-errors.html">previous
+post</a>#, we ensure that invalid format strings are detected right
+away by producing a value of a different type when we hit a parse
+error. *)
 
 Inductive printfError := InvalidFormat.
 
@@ -316,7 +321,7 @@ Definition printfOpt (o : option format) : match o with
 Definition printf (s : string) := printfOpt (parseFormat s).
 
 (** In spite of its non-trivial type, using our function is simple, as
-    the examples below show. *)
+the examples below show. *)
 
 Definition greet name y m d : string :=
   printf "Hello %s, today is %d/%2d/%2d" name y m d.
@@ -333,8 +338,7 @@ Example tableRowTest1 : tableRow "x1" true =
 Proof. reflexivity. Qed.
 
 (** Trying to pass the wrong number of arguments to [printf], or
-    giving it arguments of the wrong type, will result in a type
-    error. *)
+giving it arguments of the wrong type, will result in a type error. *)
 
 (* Example greetTest2 : string := greet 2013 4 16 "readers". *)
 
@@ -348,6 +352,6 @@ Proof. reflexivity. Qed.
 
 (** ** Summary
 
-    We've seen how dependent types and type computation make it
-    possible to implement a type-safe version of [printf] in Coq with
-    relative ease. *)
+We've seen how dependent types and type computation make it possible
+to implement a type-safe version of [printf] in Coq with relative
+ease. *)
