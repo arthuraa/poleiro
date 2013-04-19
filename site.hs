@@ -6,7 +6,7 @@ import           Data.List           (stripPrefix)
 import           Control.Monad
 import           Hakyll
 import           System.Process
-import           System.FilePath     ((</>))
+import           System.FilePath     (takeBaseName, (</>))
 
 compass :: Compiler (Item String)
 compass =
@@ -53,13 +53,14 @@ coqPost = do
   coqFileName <- getMetadataField ident "coqfile"
   case coqFileName of
     Just coqFileName ->
-      let fullName = coqPath coqFileName in do
+      let fullName = coqPath coqFileName
+          basename = takeBaseName coqFileName in do
         postBody <- loadBody $ fromFilePath fullName
         makeItem $ flip withUrls postBody $ \url ->
           -- coqdoc apparently doesn't allow us to change the links of the
           -- generated HTML that point to itself. Therefore, we must do it
           -- by hand.
-          case (stripPrefix (coqFileName ++ ".html") url, route) of
+          case (stripPrefix (basename ++ ".html") url, route) of
             (Just url', Just route) -> "/" ++ route ++ url'
             _ -> url
 
