@@ -358,8 +358,8 @@ examples below show. *)
 Definition greet name y m d : string :=
   sprintf "Hello %s, today is %d/%2d/%2d" name y m d.
 
-Example greetTest1 : greet "readers" 2013 4 16 =
-                     "Hello readers, today is 2013/04/16".
+Example greetTest1 : greet "readers" 2013 4 19 =
+                     "Hello readers, today is 2013/04/19".
 Proof. reflexivity. Qed.
 
 Definition tableRow name value : string :=
@@ -372,7 +372,7 @@ Proof. reflexivity. Qed.
 (** Trying to pass the wrong number of arguments to [sprintf], or
 giving it arguments of the wrong type, will result in a type error. *)
 
-(* Example greetTest2 : string := greet 2013 4 16 "readers". *)
+(* Example greetTest2 : string := greet 2013 4 19 "readers". *)
 
 (* Error: The term "2013" has type "nat" while it is expected to have type
   "string". *)
