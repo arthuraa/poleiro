@@ -3,13 +3,6 @@ Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import Coq.Numbers.Natural.Peano.NPeano.
 
-Notation "[ ]" := nil : list_scope.
-Notation "[ x , .. , y ]" := (cons x .. (cons y nil) ..) : list_scope.
-Notation "x ::: y" := (String x y)
-                        (at level 60, right associativity) : string_scope.
-
-Open Scope list_scope.
-Open Scope char_scope.
 (* end hide *)
 
 (** Many languages provide mechanisms for formatted output, with C's
@@ -24,7 +17,7 @@ mismatch between the output format and the other arguments results in
 incorrect behavior. This non-trivial dependency can't be expressed in
 the language's type system and requires additional compiler checks to
 be enforced. Other languages suffer from similar problems. Haskell's
-standard [printf] causes a run-time error when a format mismatch
+standard [printf] also causes a run-time error when a format mismatch
 occurs. OCaml is able to enforce that format and arguments are
 compatible at compile-time, but at the cost of extending the language
 with an _ad-hoc_ [format] type that is also represented as
@@ -48,8 +41,18 @@ type system to describe the dependency between a format string and the
 arguments it requires, and implement a version of [sprintf] that
 doesn't suffer from the aforementioned issues.
 
+Let's begin by defining some convenient notations for lists and
+strings. *)
 
-** Directives and format
+Notation "[ ]" := nil : list_scope.
+Notation "[ x , .. , y ]" := (cons x .. (cons y nil) ..) : list_scope.
+Notation "x ::: y" := (String x y)
+                        (at level 60, right associativity) : string_scope.
+
+Open Scope list_scope.
+Open Scope char_scope.
+
+(** ** Directives and format
 
 Before working directly with strings, we will define a new data type
 to describe the output format and use it to implement a preliminary
@@ -73,70 +76,95 @@ Inductive directive : Type :=
 | DString : directive
 | DChar : directive.
 
-(** Directive [DLit c] corresponds to the literal character
-[c]. [DBool], [DString] and [DChar] signal that we will output an
-element of the corresponding type.  More interestingly, [DNum s] is
-used to output numbers (i.e., Coq [nat]s). The [s] parameter controls
-the length of the number we will print. If [s = Some n], then we
-output exactly the [n] least-significant digits of the number, padding
-it with zeros if necessary. Otherwise, if [s = None], we just print
-the whole number. Thus, the number [4] should be printed as [4] using
-the [DNum None], but as [04] using [DNum (Some 2)].
+(** Directive [DLit c] outputs the literal character [c], while [DNum
+s] [DBool], [DString] and [DChar] take an argument of the
+corresponding type and print it. The [s] field of [DNum s] controls
+how its argument should be printed. If [s = Some n], then we output
+exactly the [n] least-significant digits of the number, padding it
+with zeros if necessary. Otherwise, if [s = None], we just print the
+whole number. Thus, the number [4] should be printed as [4] using the
+[DNum None], but as [04] using [DNum (Some 2)].
 
-Given this definition, the [format] type is straightforward: *)
+With the [directive] type in hand, defining [format] is
+straightforward: *)
 
 Definition format := list directive.
 
-(** Given a format [f], we can compute the type that [printf f] should
-have as follows: *)
+(** ** Relating format and arguments
+
+As noted above, [sprintf f] should be a function that returns a
+[string] and takes one argument for each directive in [f] that
+requires one. For instance, [sprintf [DBool, DString]] should have
+type [bool -> string -> string].
+
+This relation is easy to express in Coq using dependent types. Since
+types can be the result of computations, it is possible to write a
+[formatType] function that takes a [format] [f] and returns the type
+of [sprintf f]. Let's begin by defining a function that maps each
+directive to the corresponding argument type. Notice that its result
+type must be an [option], since [DLit] doesn't add arguments. *)
+
+Definition directiveType (dir : directive) :=
+  match dir with
+    | DLit _ => None
+    | DNum _ => Some nat
+    | DBool => Some bool
+    | DString => Some string
+    | DChar => Some ascii
+  end.
+
+(** Now, [formatType] itself is just a direct translation of what we
+stated above. *)
 
 Fixpoint formatType (f : format) : Type :=
   match f with
     | [] => string
     | dir :: dirs =>
-      match dir with
-        | DLit _ => formatType dirs
-        | DNum _ => nat -> formatType dirs
-        | DBool => bool -> formatType dirs
-        | DString => string -> formatType dirs
-        | DChar => ascii -> formatType dirs
+      match directiveType dir with
+        | Some T => T -> formatType dirs
+        | None => formatType dirs
       end
-  end%list.
+  end.
 
-(** Notice that all directives except [DLit] add an argument to the
-    type.
+(** We can check if this definition makes sense on simple examples. *)
 
+Example formatTypeTest1 : formatType [DBool, DString] =
+                          (bool -> string -> string).
+Proof. reflexivity. Qed.
 
-** The implementation
+Example formatTypeTest2 : formatType [DLit "a", DLit "b", DNum None] =
+                          (nat -> string).
+Proof. reflexivity. Qed.
 
-Now that we can express the type for a [format], we can try to
-implement [printf]. As a first attempt, we might try something like
-this:
+(** ** The implementation
+
+Now that we can express the type of [sprintf], we can try to implement
+it. As a first attempt, we might try something like this:
 
 [[
-Fixpoint printfImpl (f : format) : formatType f :=
+Fixpoint sprintf (f : format) : formatType f :=
   match f with
     | [] => ""
     | dir :: dirs =>
       match dir with
-        | DLit c => c :: printfImpl dirs
+        | DLit c => c :: sprintf dirs
         (* ... *)
       end
   end.
 ]]
 
 Alas, this approach doesn't work. The problem here is that our
-recursive call to [printfImpl] returns a [formatType dirs] instead of
+recursive call to [sprintf] returns a [formatType dirs] instead of
 a [string], which means that we are unable to add character [c] in
 front of it.
 
 Instead of building the string directly on the body of the match, we
-will add an auxiliary parameter [k] to [printfImpl]. To make it more
-efficient, this parameter will be a _continuation_ of type [string ->
-string] that builds the final output from the result of the recursive
-calls. For brevity, I've omitted the definition of some auxiliary
-functions, such as [writeNat], but they can be found in the original
-[.v] file. *)
+will add an auxiliary parameter [k] to [sprintf]. [k] will be a
+_continuation_ of type [string -> string] that builds the final output
+using the result of the recursive calls. The implementation uses some
+auxiliary functions, such as [writeNat], that have been omitted in the
+interest of space. Their definitions can be found in the original [.v]
+file. *)
 
 (* begin hide *)
 Definition digitToNat (c : ascii) : option nat :=
@@ -192,28 +220,30 @@ Definition writeBool (b : bool) : string :=
   if b then "true" else "false".
 (* end hide *)
 
-Fixpoint printfImpl (f : format) (k : string -> string) : formatType f :=
+Module Internal.
+
+Fixpoint sprintf (f : format) (k : string -> string) : formatType f :=
   match f with
     | [] => k ""
     | dir :: dirs =>
       match dir return formatType (dir :: dirs) with
-        | DLit c => printfImpl dirs (fun res => k (c ::: res))
+        | DLit c => sprintf dirs (fun res => k (c ::: res))
         | DNum o =>
           fun n =>
             let k' := match o with
                         | Some size => fun res => k (writeNatSize size n res)
                         | None => fun res => k (writeNat n res)
                       end in
-            printfImpl dirs k'
+            sprintf dirs k'
         | DBool =>
           fun b =>
-            printfImpl dirs (fun res => k (writeBool b ++ res))
+            sprintf dirs (fun res => k (writeBool b ++ res))
         | DString =>
           fun s =>
-            printfImpl dirs (fun res => k (s ++ res))
+            sprintf dirs (fun res => k (s ++ res))
         | DChar =>
           fun c =>
-            printfImpl dirs (fun res => k (c ::: res))
+            sprintf dirs (fun res => k (c ::: res))
       end
   end.
 
@@ -222,19 +252,21 @@ ensure that the types will match accordingly. Notice that it is still
 necessary to annotate the return type of the second [match]
 explicitly, because Coq is not able to infer it.
 
-To use [printfImpl], we just have to pass it the identity continuation
-[fun res => res], that will receive the value built by [printfImpl]
+To use [sprintf], we just have to pass it the identity continuation
+[fun res => res], that will receive the value built by [sprintf]
 and return it as-is. *)
 
-Example printfImplTest1 :
-  printfImpl [DNum None, DString] (fun res => res)
-             42 "This is a string" = "42This is a string".
+Example sprintfTest1 :
+  sprintf [DNum None, DString] (fun res => res)
+          42 "This is a string" = "42This is a string".
 Proof. reflexivity. Qed.
 
-Example printfImplTest2 :
-  printfImpl [DNum (Some 2), DLit "/", DNum (Some 2)] (fun res => res)
-             2 4 = "02/04".
+Example sprintfTest2 :
+  sprintf [DNum (Some 2), DLit "/", DNum (Some 2)] (fun res => res)
+          2 4 = "02/04".
 Proof. reflexivity. Qed.
+
+End Internal.
 
 (** ** Strings as format
 
@@ -300,8 +332,8 @@ Proof. reflexivity. Qed.
 
 (** ** Putting the pieces together
 
-Using [parseFormat], we can now write a convenient wrapper for
-[printfImpl]. Just as we did in the #<a
+Using [parseFormat], we can now write a convenient wrapper for our
+first [sprintf]. Just as we did in the #<a
 href="/posts/2013-04-03-parse-errors-as-type-errors.html">previous
 post</a>#, we ensure that invalid format strings are detected right
 away by producing a value of a different type when we hit a parse
@@ -309,35 +341,35 @@ error. *)
 
 Inductive printfError := InvalidFormat.
 
-Definition printfOpt (o : option format) : match o with
-                                             | Some f => formatType f
-                                             | None => printfError
-                                           end :=
+Definition sprintfOpt (o : option format) : match o with
+                                              | Some f => formatType f
+                                              | None => printfError
+                                            end :=
   match o with
-    | Some f => printfImpl f (fun res => res)
+    | Some f => Internal.sprintf f (fun res => res)
     | None => InvalidFormat
   end.
 
-Definition printf (s : string) := printfOpt (parseFormat s).
+Definition sprintf (s : string) := sprintfOpt (parseFormat s).
 
-(** In spite of its non-trivial type, using our function is simple, as
-the examples below show. *)
+(** Despite its intricate type, using our function is simple, as the
+examples below show. *)
 
 Definition greet name y m d : string :=
-  printf "Hello %s, today is %d/%2d/%2d" name y m d.
+  sprintf "Hello %s, today is %d/%2d/%2d" name y m d.
 
 Example greetTest1 : greet "readers" 2013 4 16 =
                      "Hello readers, today is 2013/04/16".
 Proof. reflexivity. Qed.
 
 Definition tableRow name value : string :=
-  printf "<tr><td>%s</td><td>%b</td></tr>" name value.
+  sprintf "<tr><td>%s</td><td>%b</td></tr>" name value.
 
 Example tableRowTest1 : tableRow "x1" true =
                         "<tr><td>x1</td><td>true</td></tr>".
 Proof. reflexivity. Qed.
 
-(** Trying to pass the wrong number of arguments to [printf], or
+(** Trying to pass the wrong number of arguments to [sprintf], or
 giving it arguments of the wrong type, will result in a type error. *)
 
 (* Example greetTest2 : string := greet 2013 4 16 "readers". *)
@@ -352,6 +384,9 @@ giving it arguments of the wrong type, will result in a type error. *)
 
 (** ** Summary
 
-We've seen how dependent types and type computation make it possible
-to implement a type-safe version of [printf] in Coq with relative
-ease. *)
+We've seen how to implement a type-safe version of [sprintf] in
+Coq. Unlike other approaches to the problem, our solution did not
+require abandoning strings for specifying formats, nor relies on any
+special extensions to the language. Type computation and dependent
+types, the key ingredients in our implementation, are powerful
+general-purpose features that lie at the heart of Coq. *)
