@@ -3,7 +3,10 @@ posts at http://poleiro.info.
 
 # Build requirements
 
-- Hakyll (tested with version 4.2.2.0)
-- Compass
+- Coq 8.4
+- [Hakyll][2] (tested with version 4.2.2.0)
+- [Compass][3]
 
    [1]: http://coq.inria.fr
+   [2]: http://jaspervdj.be/hakyll/
+   [3]: http://compass-style.org/
