@@ -51,4 +51,44 @@ David Pichardie.
 
 ** An example
 
-*)
+Consider the following inductive definition: *)
+
+Section Tree.
+
+Variable A : Type.
+Variable comp : A -> A -> comparison.
+
+Inductive tree : Type :=
+| Leaf
+| Node (t1 : tree) (a : A) (t2 : tree).
+
+Inductive appears (a : A) : tree -> Prop :=
+| AHere : forall t1 t2, appears a (Node t1 a t2)
+| ALeft : forall t1 a' t2,
+            appears a t1 ->
+            appears a (Node t1 a' t2)
+| ARight : forall t1 a' t2,
+             appears a t2 ->
+             appears a (Node t1 a' t2).
+(*Hint Constructors appears.*)
+
+Fixpoint insert (a : A) (t : tree) : tree :=
+  match t with
+    | Leaf => Node Leaf a Leaf
+    | Node t1 a' t2 =>
+      match comp a a' with
+        | Lt => Node (insert a t1) a' t2
+        | Eq => Node t1 a t2
+        | Gt => Node t1 a' (insert a t2)
+      end
+  end.
+
+Theorem insertAppears : forall a t, appears a (insert a t).
+Proof.
+  intros a t.
+  induction t as [|t1 IH1 a' t2 IH2]; simpl;
+  try destruct (comp a a');
+  constructor (solve[eauto]).
+Qed.
+
+End Tree.
