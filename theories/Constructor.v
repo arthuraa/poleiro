@@ -12,6 +12,7 @@ The tactic becomes particularly useful when applied to multiple goals
 simultaneously, usually in a sequence of tactics separated by the [;]
 operator. Suppose that you can solve each goal in a proof by applying
 roughly the same tactic, but need a different constructor for each case:
+
 [[
    beginning_of_proof. (* Generates some subcases.*)
 
@@ -26,9 +27,11 @@ roughly the same tactic, but need a different constructor for each case:
    ...
 
 ]]
+
 By combining the tactics with [;] and using [constructor], Coq can
 figure out by itself what needs to be applied for each case, which
 results in a more concise proof:
+
 [[
    beginning_of_proof; constructor; rest_of_proof.
 ]]
@@ -138,10 +141,10 @@ Restart.
   constructor (solve [auto]).
 Qed.
 
-(** Now, Coq will try to execute [solve [auto]] when trying a
-constructor. As we've seen, the previous case couldn't be solved if
-[ALeft] was applied, so Coq will avoid that constructor for that case,
-and choose the correct one instead.
+(** Now, Coq attempts to execute [solve [auto]] for each constructor
+it tries. This will fail when testing [ALeft] on our problematic case,
+causing Coq to skip it and try [ARight], which does work and solves
+the goal.
 
 This smarter variant of [constructor] is obviously very useful, and it
 would be great to see it properly described in the Coq user manual as
