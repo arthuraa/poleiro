@@ -104,7 +104,8 @@ Proof.
   intros a t.
   induction t as [|t1 IH1 a' t2 IH2]; simpl;
 
-  (* We must consider all three places where [a] can go, hence the [destruct] *)
+  (* We must consider all three places where "a" can go,
+     hence the "destruct" *)
   try destruct (comp a a') eqn: H;
   constructor; auto.
 
@@ -160,3 +161,5 @@ Qed.
 [auto] would not be enough to solve the goal, but wasn't able to come
 up anything better than this. If you can find a better example, please
 let me know. *)
+
+End Tree.
