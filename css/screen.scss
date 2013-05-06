@@ -116,6 +116,11 @@ nav {
         margin-top: 20px;
         margin-bottom: 20px;
     }
+    h3 {
+        font-size : $heading-size-ratio * $heading-size-ratio * $title-size;
+        margin-top: 13px;
+        margin-bottom: 13px;
+    }
     h2 + .paragraph {
         height: 0;
     }
