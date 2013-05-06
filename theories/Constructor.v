@@ -46,8 +46,15 @@ the one we need.
 Fortunately, there is a more general version of [constructor] that can
 be used to solve this problem. If [t] is a tactic, invoking
 [constructor t] will search for a constructor that can be applied to
-the current goal _and_ allows [t] to be executed in sequence. This
-nice feature, which is currently not documented in the Coq user
+the current goal _and_ allows [t] to be executed in sequence. Thus, if
+[constructor] can't find the correct constructor to apply, you can try
+to guide the tactic by doing something like
+
+[[
+  beginning_of_proof; constructor (solve [rest_of_proof]).
+]]
+
+This nice feature, which is currently not documented in the Coq user
 manual, has already been #<a
 href="https://sympa.inria.fr/sympa/arc/coq-club/2012-05/msg00097.html">#
 discussed#</a># in the Coq mailing list, and was pointed out to me by
