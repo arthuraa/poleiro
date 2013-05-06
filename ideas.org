@@ -1,7 +1,7 @@
 * Posts
 ** DONE Read and write numbers, prove it correct
 ** DONE Read hex numbers
-** Type-safe printf
+** DONE Type-safe printf
 ** Prop vs. bool
 ** Write a function to "compute" the type of a term.
 ** Formalize the IO monad in Coq and extract it.
