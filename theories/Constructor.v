@@ -138,9 +138,14 @@ Restart.
   constructor (solve [auto]).
 Qed.
 
-(** This smarter variant of [constructor] is obviously very useful,
-and it would be great to see it properly described in the Coq user
-manual as it deserves!
+(** Now, Coq will try to execute [solve [auto]] when trying a
+constructor. As we've seen, the previous case couldn't be solved if
+[ALeft] was applied, so Coq will avoid that constructor for that case,
+and choose the correct one instead.
+
+This smarter variant of [constructor] is obviously very useful, and it
+would be great to see it properly described in the Coq user manual as
+it deserves!
 
 *** Note
 
