@@ -92,6 +92,7 @@ nav {
 #main {
     border-top: solid 1px #bbb;
     padding: $inner-padding;
+    padding-bottom: 2 * $inner-padding;
     background-color: $content-background-color;
     display: block;
     p.meta {
@@ -134,7 +135,6 @@ nav {
 
 #main footer {
     background-color: $content-background-color;
-    height: 50px;
     border-top: 1px solid $article-border-color;
     padding-top: $inner-padding;
     margin-top: 2 * $inner-padding;
