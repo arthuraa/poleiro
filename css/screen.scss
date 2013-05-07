@@ -16,6 +16,7 @@ $text-color: #222;
 $title-size: 2.5em;
 $heading-size-ratio: 0.66;
 $paragraph-spacing: 20px;
+$article-border-color: hsl(65, 5, 80);
 
 $headings-font: "Source Sans Pro";
 $main-font: "Times New Roman", serif;
@@ -147,7 +148,9 @@ p {
 }
 
 article + article {
-    margin-top: 3 * $inner-padding;
+    margin-top: 2 * $inner-padding;
+    border-top: 1px solid $article-border-color;
+    padding-top: $inner-padding;
 }
 
 #disqus_thread {
