@@ -132,9 +132,18 @@ nav {
     }
 }
 
-footer {
+#main footer {
     background-color: $content-background-color;
     height: 50px;
+    border-top: 1px solid $article-border-color;
+    padding-top: $inner-padding;
+    margin-top: 2 * $inner-padding;
+    a, a:visited {
+        @include unstyled-link;
+        font-family: $headings-font;
+        color: hsl(65, 2, 50);
+        font-size: 1.1em;
+    }
 }
 
 /* coqdoc doesn't generate real <p> tags */
