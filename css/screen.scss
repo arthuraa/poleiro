@@ -143,6 +143,15 @@ nav {
         font-family: $headings-font;
         color: hsl(65, 2, 50);
         font-size: 1.1em;
+        &.next {
+            @include float-right;
+            &:after {
+                content: " »"
+            }
+        }
+        &.prev:before {
+            content: "« "
+        }
     }
 }
 
