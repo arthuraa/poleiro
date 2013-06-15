@@ -16,8 +16,7 @@ href="http://www.msr-inria.com/projects/mathematical-components/">SSReflect</a>#
 Coq plugin for some time, but the new version brings a significant
 improvement: bullets are automatically checked for consistent
 usage. Thus, besides making proofs more readable, bullets also guide
-Coq when executing a proof script, which makes errors easier to
-understand.
+Coq when executing a proof script, making errors easier to understand.
 
 Let's see how bullets work. When Coq spots a bullet during a proof, it
 hides all other goals and focuses the proof on the current one.
@@ -63,8 +62,10 @@ bullet at all) results in an error. *)
     simpl. reflexivity.
 Qed.
 
-(** It is possible to nest bullets by using different ones for each
-level. *)
+(** It is possible to nest bullets in subcases by using a different
+type for each level. The actual order doesn't matter, as long as we
+don't use a bullet when a subgoal with that same bullet is still
+unsolved. *)
 
 Lemma andb_comm : forall b1 b2, b1 && b2 = b2 && b1.
 Proof.
@@ -78,9 +79,60 @@ Proof.
     + simpl. reflexivity.
 Qed.
 
-(** When beginning a subcase with a bullet that is still _open_ (i.e.,
-that marked a subgoal that hasn't been completely solved yet), Coq
-understands that you want to proceed to the next subgoal raises an
+(** Curly braces are similar to bullets, but need to be explicitly
+closed when a goal is solved. Because of this, they can be arbitrarily
+nested, since no ambiguity arises. *)
+
+Lemma andb_comm' : forall b1 b2, b1 && b2 = b2 && b1.
+Proof.
+  intros b1 b2.
+  destruct b1.
+  { destruct b2.
+    { simpl. reflexivity. }
+    { simpl. reflexivity. } }
+  { destruct b2.
+    { simpl. reflexivity. }
+    { simpl. reflexivity. } }
+Qed.
+
+(** Curly braces also allow us to reuse bullets by "forgetting" which
+ones were used before it: *)
+
+Lemma andb_assoc : forall b1 b2 b3, b1 && (b2 && b3) = (b1 && b2) && b3.
+Proof.
+  intros b1 b2 b3.
+  destruct b1.
+  + destruct b2.
+    { destruct b3.
+      + simpl. reflexivity.
+      + simpl. reflexivity. }
+    { destruct b3.
+      + simpl. reflexivity.
+      + simpl. reflexivity. }
+  + simpl. reflexivity.
+Qed.
+
+(** Finally, a pair of curly braces doesn't have to be followed by
+another pair. This makes them great for proving assertions without
+needing to nest the proof on the second subcase: *)
+
+Lemma andb_permute : forall b1 b2 b3, b1 && (b2 && b3) = (b1 && b3) && b2.
+Proof.
+  intros b1 b2 b3.
+  assert (H : b2 && b3 = b3 && b2).
+  { (* Proof of assertion *)
+    apply andb_comm. }
+  rewrite H.
+  apply andb_assoc.
+Qed.
+
+(** If we try to use the same bullet for different subcase levels, Coq
+understands that the tactics we want to execute are meant for a
+different subgoal, and raises an error.
+
+When beginning a subcase with a bullet that is still _open_ (i.e.,
+also used a subgoal that hasn't been completely solved yet), Coq
+understands that you want to proceed to the next subgoal and raises an
 error. This makes the hierarchical structure of the proof more robust,
 
 First of all, it checks that bullets are used consistently. If you
