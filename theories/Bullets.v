@@ -3,7 +3,12 @@ Open Scope bool_scope.
 (* end hide *)
 
 (** Ltac scripts are notoriously hard to maintain. One problem that
-arises often is ensuring that
+arises often is ensuring that each piece of Ltac code executes exactly
+on the subgoal it was intended for. When refactoring Coq code, a proof
+could start generating different sets of subgoals at some points,
+causing the proof script to fail. Sometimes, these failures occur far
+from the place that needs to be fixed, making it difficult to track
+the actual cause.
 
 ** Bullets to the rescue
 
@@ -63,9 +68,9 @@ bullet at all) results in an error. *)
 Qed.
 
 (** It is possible to nest bullets in subcases by using a different
-type for each level. The actual order doesn't matter, as long as we
-don't use a bullet when a subgoal with that same bullet is still
-unsolved. *)
+type of bullet for each level. The actual order doesn't matter, as
+long as we don't use a bullet when a subgoal with that same bullet is
+still unsolved. *)
 
 Lemma andb_comm : forall b1 b2, b1 && b2 = b2 && b1.
 Proof.
@@ -80,8 +85,9 @@ Proof.
 Qed.
 
 (** Curly braces are similar to bullets, but need to be explicitly
-closed when a goal is solved. Because of this, they can be arbitrarily
-nested, since no ambiguity arises. *)
+closed when a goal is solved. This allows us to nest curly braces
+arbitrarily deep, since, unlike bullets, no ambiguity arises in those
+cases. *)
 
 Lemma andb_comm' : forall b1 b2, b1 && b2 = b2 && b1.
 Proof.
@@ -113,8 +119,8 @@ Proof.
 Qed.
 
 (** Finally, a pair of curly braces doesn't have to be followed by
-another pair. This makes them great for proving assertions without
-needing to nest the proof on the second subcase: *)
+other pairs when proceeding to other parts of the proof. This makes
+them great for proving assertions or short secondary goals: *)
 
 Lemma andb_permute : forall b1 b2 b3, b1 && (b2 && b3) = (b1 && b3) && b2.
 Proof.
@@ -125,21 +131,3 @@ Proof.
   rewrite H.
   apply andb_assoc.
 Qed.
-
-(** If we try to use the same bullet for different subcase levels, Coq
-understands that the tactics we want to execute are meant for a
-different subgoal, and raises an error.
-
-When beginning a subcase with a bullet that is still _open_ (i.e.,
-also used a subgoal that hasn't been completely solved yet), Coq
-understands that you want to proceed to the next subgoal and raises an
-error. This makes the hierarchical structure of the proof more robust,
-
-First of all, it checks that bullets are used consistently. If you
-start a subgoal with a bullet, Coq will require you to use the same
-bullet in all corresponding subgoals. Also, trying to proceed to a new
-bullet will fail if that bullet is still _open_, i.e. if it has been
-used to introduce a subgoal that hasn't been solved yet. This ensures
-that tactics will only run in the goal they were intended for, making
-errors more local and tracktable. Another advantage is that opening a
-bullet focuses the proof on the current subgoal *)
