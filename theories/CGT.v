@@ -31,11 +31,209 @@ the details of individual games.
 Here's how one can translate the above definition as a Coq datatype:
 *)
 
+Inductive side : Type := Left | Right.
+
+Inductive combinatorial_game := CombinatorialGame {
+  position : Type;
+  moves : side -> position -> list position;
+  valid_move p1 p2 := exists s, In p1 (moves s p2);
+  finite_game : well_founded valid_move
+}.
+
+(* The next function alternates between players *)
+
+Definition other (s : side) : side :=
+  match s with
+    | Left => Right
+    | Right => Left
+  end.
+
+Inductive Match cg : forall (first winner : side), list (position cg) -> Prop :=
+| Match_end : forall winner p,
+                moves cg (other winner) p = [] ->
+                Match cg (other winner) winner [p]
+| Match_step : forall s winner p p' m,
+                 In p' (moves cg s p) ->
+                 Match cg (other s) winner (p' :: m) ->
+                 Match cg s winner (p :: p' :: m).
+
+Inductive equivalent_positions cg1 cg2 (p1 : position cg1) (p2 : position cg2) : Prop :=
+| ep_intro : (forall p1' s, In p1' (moves cg1 s p1) ->
+                            exists p2', In p2' (moves cg2 s p2) /\
+                                        equivalent_positions cg1 cg2 p1' p2') ->
+             (forall p2' s, In p2' (moves cg2 s p2) ->
+                            exists p1', In p1' (moves cg1 s p1) /\
+                                        equivalent_positions cg1 cg2 p1' p2') ->
+             equivalent_positions cg1 cg2 p1 p2.
+
+Definition game_embedding cg1 cg2
+                          (embedding : position cg1 -> position cg2) :=
+  forall p1, equivalent_positions cg1 cg2 p1 (embedding p1).
+
+(*
+Lemma game_embedding_correct :
+  forall cg1 cg2
+         (first winner : side) (m : list (position cg1))
+         embedding
+         (EMBED : game_embedding cg1 cg2 embedding)
+         (MATCH : Match cg1 first winner m),
+    Match cg2 first winner (map embedding m).
+Proof.
+  intros.
+  induction MATCH as [winner p1 H|s winner p1 p1' m IN MATCH IH].
+  - simpl.
+    constructor.
+    specialize (EMBED p1).
+    destruct EMBED as [H1 H2].
+    destruct (moves cg2 (other winner) (embedding p1)) as [|p2' ms] eqn:MOVES; trivial.
+    specialize (H2 p2' (other winner)).
+    rewrite MOVES in H2.
+    rewrite H in H2. simpl in H2.
+    destruct H2; intuition.
+  - simpl.
+    constructor; auto.
+    specialize (EMBED p1).
+    destruct EMBED as [H1 H2].
+    apply H1 in IN.
+*)
+
 Inductive game := Game {
   left_moves : list game;
   right_moves : list game
 }.
 
+Lemma lift_forall :
+  forall T (P : T -> Prop),
+    (forall t, P t) ->
+    forall l, Forall P l.
+Proof. induction l; auto. Defined.
+
+Definition game_ind' (P : game -> Prop)
+                     (H : forall l r, Forall P l -> Forall P r -> P (Game l r)) :
+  forall g : game, P g :=
+  fix F (g : game) : P g :=
+  match g with
+    | Game l r =>
+      H l r (lift_forall _ P F l) (lift_forall _ P F r)
+  end.
+
+Definition game_cg : combinatorial_game.
+  refine ({| position := game;
+             moves s := if s then left_moves else right_moves |}).
+  intros p1.
+  induction p1 as [l r IHl IHr] using game_ind'.
+  constructor.
+  intros p2 [s H].
+  destruct s; simpl in H.
+  - rewrite Forall_forall in IHl.
+    apply IHl.
+    assumption.
+  - rewrite Forall_forall in IHr.
+    apply IHr.
+    assumption.
+Defined.
+
+Fixpoint map_In {A B} (l : list A) : (forall x, In x l -> B) -> list B :=
+  match l with
+    | [] => fun _ => []
+    | x :: l' => fun f =>
+                   f x (or_introl _ eq_refl)
+                     :: map_In l' (fun x P => f x (or_intror _ P))
+  end.
+
+Definition embed_in_game cg (p : position cg) : game :=
+  @Fix (position cg) (valid_move cg) (finite_game cg)
+       (fun _ => position game_cg)
+       (fun p F =>
+          Game (map_In (moves cg Left p) (fun p P => F p (ex_intro _ Left P)))
+               (map_In (moves cg Right p) (fun p P => F p (ex_intro _ Right P))))
+       p.
+
+Lemma map_In_map :
+  forall A B
+         (l : list A)
+         (f : forall x, In x l -> B)
+         (g : A -> B)
+         (H : forall x P, f x P = g x),
+    map_In l f = map g l.
+Proof.
+  intros.
+  induction l as [|x l IH]; auto.
+  simpl.
+  rewrite H. f_equal.
+  apply IH.
+  intros x' P.
+  apply H.
+Qed.
+
+Lemma map_In_ext :
+  forall A B
+         (l : list A)
+         (f g : forall x, In x l -> B)
+         (EXT : forall x P, f x P = g x P),
+    map_In l f = map_In l g.
+Proof.
+  intros.
+  induction l as [|x l IH]; auto.
+  simpl. rewrite EXT.
+  f_equal.
+  apply IH.
+  intros x' P.
+  apply EXT.
+Qed.
+
+Lemma embed_in_game_eq cg (p : position cg) :
+  embed_in_game cg p =
+  Game (map (embed_in_game cg) (moves cg Left p))
+       (map (embed_in_game cg) (moves cg Right p)).
+Proof.
+  induction p using (well_founded_ind (finite_game cg)).
+  unfold embed_in_game in *.
+  rewrite Fix_eq; intros; f_equal;
+  solve [ apply map_In_map; reflexivity
+        | apply map_In_ext; intros; eauto ].
+Qed.
+
+Lemma embed_in_game_moves cg (p : position cg) :
+  forall s, moves game_cg s (embed_in_game cg p) =
+            map (embed_in_game cg) (moves cg s p).
+Proof.
+  intros.
+  rewrite embed_in_game_eq.
+  destruct s; reflexivity.
+Qed.
+
+Lemma embed_in_game_correct cg : game_embedding cg game_cg (embed_in_game cg).
+  intros p1.
+  induction p1 as [p1 IH] using (well_founded_ind (finite_game cg)).
+  constructor.
+  - intros p1' s IN.
+    rewrite embed_in_game_moves.
+    specialize (IH _ (ex_intro _ s IN)).
+    eauto using in_map.
+  - intros p2' s IN.
+    rewrite embed_in_game_moves in IN.
+    rewrite in_map_iff in IN.
+    destruct IN as (p1' & ? & IN). subst.
+    specialize (IH _ (ex_intro _ s IN)).
+    eauto.
+Qed.
+
+Lemma embed_in_game_correct' cg :
+  forall first winner
+         (m : list (position cg))
+         (MATCH : Match cg first winner m),
+    Match game_cg first winner (map (embed_in_game cg) m).
+Proof.
+  intros.
+  induction MATCH as [winner p H|s winner p p' m IN MATCH IH];
+  simpl; constructor; eauto.
+
+  - rewrite embed_in_game_moves, H. reflexivity.
+
+  - rewrite embed_in_game_moves. auto using in_map.
+
+Qed.
 
 (* We can now define some standard games... *)
 
@@ -228,7 +426,6 @@ Proof. reflexivity. Qed.
 a little bit more. Let's define a datatype for representing players,
 and a function for comparing members of that type. *)
 
-Inductive side : Type := Left | Right.
 
 Definition side_eq (s1 s2 : side) : bool :=
   match s1, s2 with
@@ -237,13 +434,6 @@ Definition side_eq (s1 s2 : side) : bool :=
     | _, _ => false
   end.
 
-(* The next function alternates between players *)
-
-Definition other (s : side) : side :=
-  match s with
-    | Left => Right
-    | Right => Left
-  end.
 
 (* And moves selects the moves of a player from a game *)
 
