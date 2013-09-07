@@ -9,7 +9,7 @@ Open Scope bool_scope.
 
 (* end hide *)
 
-(* In this post, I will show how to formalize a small part of #<a
+(** In this post, I will begin to formalize a small part of #<a
 href="http://en.wikipedia.org/wiki/Combinatorial_game_theory>#
 _combinatorial game theory_#</a># using Coq. Combinatorial game theory
 attempts to model sequential, deterministic games between two players,
@@ -19,19 +19,25 @@ configuration of the game is known to both players. Thus, it can be
 used to study games such as chess, tic-tac-toe, and go, but not games
 such as poker or blackjack.
 
-The foundations of combinatorial game theory are simple yet
-powerful. We represent a game configuration as the set of moves that
-are available to each player. Each move, on the other hand, is just
-another possible game configuration. A game ends when a player has to
-play but doesn't have any moves left, in which case the other player
-wins. This definition, although minimal, allows us to represent and
-reason about combinatorial games generically, abstracting away from
-the details of individual games.
+Combinatorial game theory abstracts away from details that are too
+specific to each game, such as describing what the set of positions
+is. Instead, it defines a single mathematical object that can model
+all games uniformily, allowing us to study general situations that
+could occur in many kinds of games. In this post, I will explain what
+this representation is and why it makes sense. In order to do that, we
+first need to formalize what a combinatorial game is.
 
-Here's how one can translate the above definition as a Coq datatype:
-*)
+We suppose that there are two players. In combinatorial game theory,
+these are traditionally called _left_ and _right_. *)
 
-Inductive side : Type := Left | Right.
+Inductive player : Type := Left | Right.
+
+(** A combinatorial game is made of two things: a type [position] that
+represents the set of positions in the game, together with a [moves]
+function that tells which moves are available to each player at a
+given position. We shall also assume that our games are _finite_,
+i.e. that all move sequences must eventually terminate. This results
+in the following Coq declaration: *)
 
 Inductive combinatorial_game := CombinatorialGame {
   position : Type;
@@ -40,7 +46,11 @@ Inductive combinatorial_game := CombinatorialGame {
   finite_game : well_founded valid_move
 }.
 
-(* The next function alternates between players *)
+(**
+By convention, our games will end when a player is not
+able to make a move, in which case they lose.
+
+The next function alternates between players *)
 
 Definition other (s : side) : side :=
   match s with
@@ -57,45 +67,12 @@ Inductive Match cg : forall (first winner : side), list (position cg) -> Prop :=
                  Match cg (other s) winner (p' :: m) ->
                  Match cg s winner (p :: p' :: m).
 
-Inductive equivalent_positions cg1 cg2 (p1 : position cg1) (p2 : position cg2) : Prop :=
-| ep_intro : (forall p1' s, In p1' (moves cg1 s p1) ->
-                            exists p2', In p2' (moves cg2 s p2) /\
-                                        equivalent_positions cg1 cg2 p1' p2') ->
-             (forall p2' s, In p2' (moves cg2 s p2) ->
-                            exists p1', In p1' (moves cg1 s p1) /\
-                                        equivalent_positions cg1 cg2 p1' p2') ->
-             equivalent_positions cg1 cg2 p1 p2.
-
-Definition game_embedding cg1 cg2
-                          (embedding : position cg1 -> position cg2) :=
-  forall p1, equivalent_positions cg1 cg2 p1 (embedding p1).
-
-(*
-Lemma game_embedding_correct :
-  forall cg1 cg2
-         (first winner : side) (m : list (position cg1))
-         embedding
-         (EMBED : game_embedding cg1 cg2 embedding)
+Definition game_embedding (cg1 cg2 : combinatorial_game)
+           (embedding : position cg1 -> position cg2) : Prop :=
+  forall first winner
+         (m : list (position cg1))
          (MATCH : Match cg1 first winner m),
     Match cg2 first winner (map embedding m).
-Proof.
-  intros.
-  induction MATCH as [winner p1 H|s winner p1 p1' m IN MATCH IH].
-  - simpl.
-    constructor.
-    specialize (EMBED p1).
-    destruct EMBED as [H1 H2].
-    destruct (moves cg2 (other winner) (embedding p1)) as [|p2' ms] eqn:MOVES; trivial.
-    specialize (H2 p2' (other winner)).
-    rewrite MOVES in H2.
-    rewrite H in H2. simpl in H2.
-    destruct H2; intuition.
-  - simpl.
-    constructor; auto.
-    specialize (EMBED p1).
-    destruct EMBED as [H1 H2].
-    apply H1 in IN.
-*)
 
 Inductive game := Game {
   left_moves : list game;
@@ -203,29 +180,11 @@ Proof.
   destruct s; reflexivity.
 Qed.
 
-Lemma embed_in_game_correct cg : game_embedding cg game_cg (embed_in_game cg).
-  intros p1.
-  induction p1 as [p1 IH] using (well_founded_ind (finite_game cg)).
-  constructor.
-  - intros p1' s IN.
-    rewrite embed_in_game_moves.
-    specialize (IH _ (ex_intro _ s IN)).
-    eauto using in_map.
-  - intros p2' s IN.
-    rewrite embed_in_game_moves in IN.
-    rewrite in_map_iff in IN.
-    destruct IN as (p1' & ? & IN). subst.
-    specialize (IH _ (ex_intro _ s IN)).
-    eauto.
-Qed.
 
 Lemma embed_in_game_correct' cg :
-  forall first winner
-         (m : list (position cg))
-         (MATCH : Match cg first winner m),
-    Match game_cg first winner (map (embed_in_game cg) m).
+  embedding_correct cg game_cg (embed_in_game cg).
 Proof.
-  intros.
+  unfold embedding_correct. intros.
   induction MATCH as [winner p H|s winner p p' m IN MATCH IH];
   simpl; constructor; eauto.
 
