@@ -7,7 +7,7 @@ Open Scope bool_scope.
 
 (** In this post, I will begin to formalize a small part of #<a
 href="http://en.wikipedia.org/wiki/Combinatorial_game_theory">#
-_combinatorial game theory_ #</a># using Coq. Combinatorial game theory
+combinatorial game theory#</a># using Coq. Combinatorial game theory
 attempts to model sequential, deterministic games between two players,
 both of which take turns causing the game state to change. It
 restricts itself to _perfect information_ games, where the current
@@ -15,13 +15,15 @@ configuration of the game is known to both players. Thus, it can be
 used to study games such as chess, tic-tac-toe, and go, but not games
 such as poker or blackjack.
 
-Combinatorial game theory abstracts away from details that are too
-specific to each game, such as describing what the set of positions
-is. Instead, it defines a single mathematical object that can model
-all games uniformily, allowing us to study general situations that
-could occur in many kinds of games. In this post, I will present this
-representation and discuss why it makes sense. In order to do that, we
-first need to formalize what a combinatorial game is.
+The power of combinatorial game theory comes from abstracting away
+details that are too specific to each game, such as whether it is
+played moving pieces on a board, how the pieces can move, etc. It
+defines a single mathematical object that can represent all games
+uniformily, allowing us to study general situations that could occur
+in many kinds of games. In this post, I will present this
+representation and discuss why it makes sense. I will start with a
+more intuitive formalization of combinatorial games, and then show how
+combinatorial game theory applies to all of those.
 
 ** Defining combinatorial games
 
@@ -30,17 +32,18 @@ _right_. *)
 
 Inductive player : Type := Left | Right.
 
-(** Each combinatorial game has a set of _positions_. The rules of the
-game determine which _moves_ are available to each player at a given
-position. They also describe how the game ends, and which player wins
-in that case. To simplify our analysis, we will assume that games end
-when some player must play but has no moves left, in which case the
-other player wins. This frees us from having to model how matches end
-explicitly for each game. We will also consider only _finite_ games,
-i.e. ones that can't be played indefinitely. Notice that these two
-assumptions taken together rule out many interesting games. They imply
-for instance that games can't result in a draw, which means that games
-such as chess can't be accurately modeled.
+(** Each combinatorial game has a set of _positions_. In chess, for
+instance, a position is a chess board with black and white pieces on
+it. The rules of the game determine which _moves_ are available to
+each player at a given position. They also describe how the game ends,
+and which player wins in that case. To simplify our analysis, we will
+assume that games end when some player must play but has no moves
+left, in which case the other player wins. This frees us from having
+to model how matches end separately for each game. We will also
+consider only _finite_ games, i.e. ones that can't be played
+indefinitely. Notice that these two assumptions taken together,
+strictly speaking, rule out many interesting games: chess can end in a
+draw, something that can't happen in our model.
 
 Translating the above requirements into code results in the following
 definition: *)
@@ -52,10 +55,10 @@ Inductive combinatorial_game := CombinatorialGame {
   finite_game : well_founded valid_move
 }.
 
-(** We can now formalize how games are played. Let's define a
-predicate [Match cg first winner m] to model a match of game [cg]
-where player [first] starts and player [winner] wins. [m] is the list
-of positions traversed during the match, from first to last. *)
+(** To formalize how games are played, we define a predicate [Match cg
+first winner m] that represents a match of game [cg] where player
+[first] starts and player [winner] wins. [m] is the sequence of
+positions traversed during the match, from first to last. *)
 
 Definition other (s : player) : player :=
   match s with
@@ -108,8 +111,8 @@ wins by making a move to [zero]. *)
 
 Definition star : game := Game [zero] [zero].
 
-(** A slight variation gives us [one] and [minus_one], where [Left]
-and [Right] always win, respectively. *)
+(** A small variation gives us [one] and [minus_one], where [Left] and
+[Right] always win, respectively. *)
 
 Definition one : game := Game [zero] [].
 Definition minus_one : game := Game [] [zero].
@@ -154,6 +157,8 @@ Definition game_as_cg : combinatorial_game.
              moves s := if s then left_moves else right_moves |}).
   intros p1.
   induction p1 as [l r IHl IHr] using game_ind'.
+  (* ... *)
+  (* begin hide *)
   constructor.
   intros p2 [s H].
   destruct s; simpl in H.
@@ -163,6 +168,7 @@ Definition game_as_cg : combinatorial_game.
   - rewrite Forall_forall in IHr.
     apply IHr.
     assumption.
+  (* end hide *)
 Defined.
 
 (** ** Game embeddings
@@ -170,13 +176,12 @@ Defined.
 I claimed that [game] is the most general combinatorial game. One way
 of seeing this is that we lose no information by representing each
 position in a combinatorial game as the tree of all possible moves,
-and such a tree can always be encoded as a [game].
-
-To make this intuition formal, we can define a notion of _game
-embedding_ between two combinatorial games. This will be a mapping
-between the positions of each combinatorial game that preserves
-matches. Clearly, if we have an embedding of [cg1] into [cg2], then we
-can study [cg1] matches by regarding them as [cg2] matches. *)
+and such a tree can always be encoded as a [game]. To make this
+intuition formal, we can define a notion of _game embedding_ between
+two combinatorial games. This will be a mapping between the positions
+of each combinatorial game that preserves matches. Thus, if we have an
+embedding of [cg1] into [cg2], then we can study [cg1] matches by
+regarding them as [cg2] matches. *)
 
 Definition game_embedding (cg1 cg2 : combinatorial_game)
            (embedding : position cg1 -> position cg2) : Prop :=
@@ -187,9 +192,9 @@ Definition game_embedding (cg1 cg2 : combinatorial_game)
 (** With this notion of game embedding, combinatorial games form a
 category. I will now show that every combinatorial game can be
 embedded in [game], making [game] a terminal object in this category
-and the most general combinatorial game. In this formulation, it can
-only be a _weakly_ terminal object (i.e., embeddings are not unique),
-as we are using Coq lists to represent sets.
+and the most general combinatorial game. In this formulation, it is
+only a _weakly_ terminal object (i.e., embeddings are not unique), as
+we are using Coq lists to represent sets.
 
 To embed an arbitrary combinatorial game into [game], we can define a
 function by well-founded recursion over the proof that games are
@@ -210,14 +215,20 @@ library, we write a generic embedding function [embed_in_game]. Like a
 regular fixpoint combinator, [Fix] takes a function that does a
 recursive call by applying its argument (here, [F]). The difference is
 that this argument must take a _proof_ that shows that the recursive
-call is valid (the [ex_intro _ ...] terms). *)
+call is valid (the [ex_intro _ ...] terms below).
+
+The behavior of [embed_in_game] is simple: it calls itself recursively
+for each possible next position, and includes that position in the set
+of moves of the appropriate player. *)
 
 Definition embed_in_game cg (pos : position cg) : game :=
   Fix (finite_game cg)
       (fun _ => position game_as_cg)
       (fun pos F =>
-         Game (map_In (moves cg Left pos) (fun pos' P => F pos' (ex_intro _ Left P)))
-              (map_In (moves cg Right pos) (fun pos' P => F pos' (ex_intro _ Right P))))
+         Game (map_In (moves cg Left pos)
+                      (fun pos' P => F pos' (ex_intro _ Left P)))
+              (map_In (moves cg Right pos)
+                      (fun pos' P => F pos' (ex_intro _ Right P))))
       pos.
 (* begin hide *)
 Lemma map_In_map :
@@ -277,7 +288,7 @@ Proof.
   (* end hide *)
 Qed.
 
-(** This lemma gives us the following useful result: *)
+(** With this lemma, we can show that [moves] and [embed_in_game] commute. *)
 
 Lemma embed_in_game_moves cg (p : position cg) :
   forall s, moves game_as_cg s (embed_in_game cg p) =
@@ -288,7 +299,8 @@ Proof.
   destruct s; reflexivity.
 Qed.
 
-(** We are now ready to state and prove our theorem: *)
+(** We are now ready to state and prove our theorem: every
+combinatorial game can be embedded in [game]. *)
 
 Theorem embed_in_game_correct cg :
   game_embedding cg game_as_cg (embed_in_game cg).
