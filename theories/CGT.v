@@ -198,9 +198,10 @@ we are using Coq lists to represent sets.
 
 To embed an arbitrary combinatorial game into [game], we can define a
 function by well-founded recursion over the proof that games are
-finite. In order to do this, we need a higher-order function [map_In]
-that acts like [map], but passes to its argument function a proof that
-the element is a member of the mapped list. *)
+finite. In order to do this, we need a higher-order function
+[map_game] that allows us to perform a well-founded recursive call on
+a list of next moves. [map_game] acts like [map], but passes to its
+argument function a proof that the element is a [valid_move]. *)
 
 Fixpoint map_In {A B} (l : list A) : (forall x, In x l -> B) -> list B :=
   match l with
@@ -210,12 +211,17 @@ Fixpoint map_In {A B} (l : list A) : (forall x, In x l -> B) -> list B :=
                      :: map_In l' (fun x P => f x (or_intror _ P))
   end.
 
+Definition map_game {A} (cg : combinatorial_game)
+                    (pos : position cg) (p : player)
+                    (f : forall pos', valid_move cg pos' pos -> A) : list A :=
+  map_In (moves cg p pos) (fun pos' P => f pos' (ex_intro _ p P)).
+
 (** Using this function and the [Fix] combinator in the standard
 library, we write a generic embedding function [embed_in_game]. Like a
 regular fixpoint combinator, [Fix] takes a function that does a
 recursive call by applying its argument (here, [F]). The difference is
 that this argument must take a _proof_ that shows that the recursive
-call is valid (the [ex_intro _ ...] terms below).
+call is valid.
 
 The behavior of [embed_in_game] is simple: it calls itself recursively
 for each possible next position, and includes that position in the set
@@ -225,10 +231,8 @@ Definition embed_in_game cg (pos : position cg) : game :=
   Fix (finite_game cg)
       (fun _ => position game_as_cg)
       (fun pos F =>
-         Game (map_In (moves cg Left pos)
-                      (fun pos' P => F pos' (ex_intro _ Left P)))
-              (map_In (moves cg Right pos)
-                      (fun pos' P => F pos' (ex_intro _ Right P))))
+         Game (map_game cg pos Left F)
+              (map_game cg pos Right F))
       pos.
 (* begin hide *)
 Lemma map_In_map :
@@ -248,6 +252,16 @@ Proof.
   apply H.
 Qed.
 
+Lemma map_game_map :
+  forall A
+         (cg : combinatorial_game)
+         (pos : position cg) (p : player)
+         (f : forall pos', valid_move cg pos' pos -> A)
+         (g : position cg -> A)
+         (H : forall pos' P, f pos' P = g pos'),
+    map_game cg pos p f = map g (moves cg p pos).
+Proof. eauto using map_In_map. Qed.
+
 Lemma map_In_ext :
   forall A B
          (l : list A)
@@ -263,6 +277,16 @@ Proof.
   intros x' P.
   apply EXT.
 Qed.
+
+Lemma map_game_ext :
+  forall A
+         (cg : combinatorial_game)
+         (pos : position cg) (p : player)
+         (f g : forall pos', valid_move cg pos' pos -> A)
+         (EXT : forall pos' P, f pos' P = g pos' P),
+    map_game cg pos p f = map_game cg pos p g.
+Proof. eauto using map_In_ext. Qed.
+
 (* end hide *)
 (** Definitions that use [Fix] can be hard to manipulate directly, so
 we need to prove some equations that describe the reduction behavior
@@ -283,8 +307,8 @@ Proof.
   unfold embed_in_game in *.
   rewrite Fix_eq;
   intros; f_equal;
-  solve [ apply map_In_map; reflexivity
-        | apply map_In_ext; intros; eauto ].
+  solve [ apply map_game_map; reflexivity
+        | apply map_game_ext; intros; eauto ].
   (* end hide *)
 Qed.
 
