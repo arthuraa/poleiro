@@ -293,19 +293,18 @@ we need to prove some equations that describe the reduction behavior
 of the function. I've hidden some of the auxiliary lemmas and proofs
 for clarity; as usual, you can find them in the original [.v] file.
 
-The proof that we can unfold [embed_in_game] once goes by
-well-founded induction on the position. *)
+The proof that we can unfold [embed_in_game] once uses the [Fix_eq]
+lemma in the standard library. *)
 
 Lemma embed_in_game_eq cg (pos : position cg) :
   embed_in_game cg pos =
   Game (map (embed_in_game cg) (moves cg Left pos))
        (map (embed_in_game cg) (moves cg Right pos)).
 Proof.
-  induction pos using (well_founded_ind (finite_game cg)).
-  (* ... *)
-  (* begin hide *)
   unfold embed_in_game in *.
   rewrite Fix_eq;
+  (* ... *)
+  (* begin hide *)
   intros; f_equal;
   solve [ apply map_game_map; reflexivity
         | apply map_game_ext; intros; eauto ].
