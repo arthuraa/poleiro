@@ -187,3 +187,55 @@ Qed.
 
 (** In the next posts, we will see how to use this machinery when
 decomposing games as sums and comparing subgames. *)
+
+(* begin hide *)
+(* Alternative definition for sum that doesn't use [Fix] directly *)
+Module Alt.
+
+Lemma embed_in_game_game :
+  forall g, embed_in_game game_as_cg g = g.
+Proof.
+  intros.
+  induction g as [[gs1 gs2] IH] using (well_founded_ind (finite_game game_as_cg)).
+  rewrite embed_in_game_eq. simpl.
+  f_equal; rewrite <- map_id; apply map_ext_strong; intros; apply IH;
+  [exists Left|exists Right]; trivial.
+Qed.
+
+Definition sum (g1 g2 : game) : game :=
+  embed_in_game (sum_cg game_as_cg game_as_cg) (g1, g2).
+
+Lemma sum_eq (g1 g2 : game) :
+  sum g1 g2 =
+  Game (map (fun g1' => sum g1' g2) (left_moves g1) ++
+        map (fun g2' => sum g1 g2') (left_moves g2))
+       (map (fun g1' => sum g1' g2) (right_moves g1) ++
+        map (fun g2' => sum g1 g2') (right_moves g2)).
+Proof.
+  unfold sum at 1.
+  rewrite embed_in_game_eq. simpl.
+  repeat rewrite map_app. repeat rewrite map_map.
+  reflexivity.
+Qed.
+
+Lemma sum_is_sum (cg1 cg2 : combinatorial_game)
+                 (pos1 : position cg1) (pos2 : position cg2) :
+  embed_in_game (sum_cg cg1 cg2) (pos1, pos2) =
+  sum (embed_in_game cg1 pos1) (embed_in_game cg2 pos2).
+Proof.
+  remember (pos1, pos2) as pos.
+  replace pos1 with (fst pos) by (destruct pos; simpl; congruence).
+  replace pos2 with (snd pos) by (destruct pos; simpl; congruence).
+  clear.
+  induction pos as [[pos1 pos2] IH]
+                using (well_founded_ind cg_pair_order_wf).
+  rewrite embed_in_game_eq, sum_eq. simpl.
+  repeat rewrite (embed_in_game_moves _ _ Left).
+  repeat rewrite (embed_in_game_moves _ _ Right).
+  repeat rewrite map_app. repeat rewrite map_map.
+  do 2 f_equal;
+  apply map_ext_strong; intros pos IN; apply IH; constructor; eexists; eauto.
+Qed.
+
+End Alt.
+(* end hide *)
