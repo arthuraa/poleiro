@@ -2,9 +2,7 @@
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import Coq.Numbers.Natural.Peano.NPeano.
-
 (* end hide *)
-
 (** Many languages provide mechanisms for formatted output, with C's
 [printf] undoubtedly being the most influential one. Some of these
 functions allow a format to be specified using a concise and intuitive

@@ -1,8 +1,9 @@
+(* begin hide *)
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import Coq.Numbers.Natural.Peano.NPeano.
 Require Import Omega.
-
+(* end hide *)
 (** Many programming languages have built-in support for string
     processing. Coq is no exception. The standard library provides us
     with its own definition of strings. Unlike other languages,

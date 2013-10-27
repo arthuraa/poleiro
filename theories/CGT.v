@@ -4,7 +4,6 @@ Notation "[]" := nil : list_scope.
 Notation "[ x , .. , y ]" := (cons x .. (cons y nil) .. ) : list_scope.
 Open Scope bool_scope.
 (* end hide *)
-
 (** In this post, I will begin to formalize a small part of #<a
 href="http://en.wikipedia.org/wiki/Combinatorial_game_theory">#
 combinatorial game theory#</a># using Coq. Combinatorial game theory

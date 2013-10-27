@@ -1,6 +1,7 @@
+(* begin hide *)
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
-
+(* end hide *)
 (** Binary numbers are so ubiquitous in Computer Science that
     programming languages often have special notations for them. The
     most popular one is arguably hexadecimal notation. It is close to

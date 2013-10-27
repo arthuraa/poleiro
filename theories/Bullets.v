@@ -1,7 +1,6 @@
 (* begin hide *)
 Open Scope bool_scope.
 (* end hide *)
-
 (** Ltac scripts are notoriously hard to maintain. One problem that
 arises often is ensuring that each piece of Ltac code executes exactly
 on the subgoal it was intended for. When refactoring Coq code, a proof
