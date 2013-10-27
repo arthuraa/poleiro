@@ -13,36 +13,25 @@ Fail Fixpoint sum (g1 g2 : game) : game :=
 
 Definition game_pair_order {cg1 cg2 : combinatorial_game} :=
   symprod _ _ (valid_move cg1) (valid_move cg2).
-Definition gpo_introl {cg1 cg2}
-                      (g1 g1' : position cg1)
-                      (P : valid_move cg1 g1' g1)
-                      (g2 : position cg2)
-                      : game_pair_order (g1', g2) (g1, g2) :=
-  left_sym _ _ _ _ g1' g1 P g2.
-Definition gpo_intror {cg1 cg2 : combinatorial_game}
-                      (g2 g2' : position cg2)
-                      (P : valid_move cg2 g2' g2)
-                      (g1 : position cg1)
-                      : game_pair_order (g1, g2') (g1, g2) :=
-  right_sym _ _ _ _ g2' g2 P g1.
 Definition game_pair_order_wf cg1 cg2 : well_founded game_pair_order :=
   wf_symprod _ _ _ _ (finite_game cg1) (finite_game cg2).
 
-Definition sum (g1 g2 : game) : game :=
-  Fix (game_pair_order_wf game_as_cg game_as_cg) (fun _ => game)
-      (fun gs =>
-         match gs with
+Definition sum (g1 g2 : game) : game.
+  refine (
+    Fix (game_pair_order_wf game_as_cg game_as_cg) (fun _ => game)
+        (fun gs =>
+           match gs with
            | (g1, g2) =>
-             fun F =>
-               Game (map_game game_as_cg g1 Left
-                              (fun g1' P => F _ (gpo_introl g1 g1' P g2)) ++
-                     map_game game_as_cg g2 Left
-                              (fun g2' P => F _ (gpo_intror g2 g2' P g1)))
-                    (map_game game_as_cg g1 Right
-                              (fun g1' P => F _ (gpo_introl g1 g1' P g2)) ++
-                     map_game game_as_cg g2 Right
-                              (fun g2' P => F _ (gpo_intror g2 g2' P g1)))
-         end) (g1, g2).
+             fun sum =>
+               let sum_fst g1' P := sum (g1', g2) _ in
+               let sum_snd g2' P := sum (g1, g2') _ in
+               Game (map_game game_as_cg g1 Left sum_fst ++
+                     map_game game_as_cg g2 Left sum_snd)
+                    (map_game game_as_cg g1 Right sum_fst ++
+                     map_game game_as_cg g2 Right sum_snd)
+           end) (g1, g2));
+  clear - P; constructor; eauto.
+Defined.
 
 Lemma sum_eq (g1 g2 : game) :
   sum g1 g2 =
