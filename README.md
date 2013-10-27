@@ -4,7 +4,7 @@ posts at http://poleiro.info.
 # Build requirements
 
 - Coq 8.4
-- [Hakyll][2] (tested with version 4.2.2.0)
+- [Hakyll][2] (tested with version 4.4.1.2)
 - [Compass][3]
 
    [1]: http://coq.inria.fr
