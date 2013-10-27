@@ -39,13 +39,11 @@ getCoqFileName item = do
 gitHubBlobPath = "https://github.com/arthuraa/poleiro/blob/master"
 
 gitHubField :: Context a
-gitHubField = field "github" $ \item -> do
+gitHubField = field "githublink" $ \item -> do
   coqFileName <- getCoqFileName item
   case coqFileName of
     Just coqFileName -> do
-      let url = gitHubBlobPath ++ "/" ++ coqFileName
-      linkTemplate <- loadBody "templates/github-link.html"
-      applyTemplateWith (\_ _ -> return url) linkTemplate ()
+      return $ gitHubBlobPath ++ "/" ++ coqFileName
     Nothing -> return ""
 
 coqPost :: Compiler (Item String)
