@@ -3,14 +3,14 @@ Require Import Coq.Init.Wf.
 Require Import Coq.Wellfounded.Lexicographic_Product.
 Require Import Coq.Relations.Relation_Operators.
 Require Import CGT.
-Definition game_pair_order {cg1 cg2 : combinatorial_game} :=
+Definition game_pair_order {cg1 cg2} :=
   symprod _ _ (valid_move cg1) (valid_move cg2).
-Definition game_pair_order_wf cg1 cg2 : well_founded game_pair_order :=
+Definition game_pair_order_wf {cg1 cg2} : well_founded game_pair_order :=
   wf_symprod _ _ _ _ (finite_game cg1) (finite_game cg2).
 
 Program Definition sum_cg (cg1 cg2 : combinatorial_game)
                           : combinatorial_game :=
-  {| position := (position cg1 * position cg2);
+  {| position := position cg1 * position cg2;
      moves p pos := map (fun pos1' => (pos1', snd pos))
                         (moves cg1 p (fst pos)) ++
                     map (fun pos2' => (fst pos, pos2'))
@@ -44,7 +44,7 @@ Fail Fixpoint sum (g1 g2 : game) : game :=
 
 Definition sum (g1 g2 : game) : game.
   refine (
-    Fix (game_pair_order_wf game_as_cg game_as_cg) (fun _ => game)
+    Fix game_pair_order_wf (fun _ => game)
         (fun gs =>
            match gs with
            | (g1, g2) =>
@@ -100,7 +100,7 @@ Proof.
   replace pos2 with (snd pos) by (destruct pos; simpl; congruence).
   clear.
   induction pos as [[pos1 pos2] IH]
-                using (well_founded_ind (game_pair_order_wf _ _)).
+                using (well_founded_ind game_pair_order_wf).
   rewrite embed_in_game_eq, sum_eq. simpl.
   repeat rewrite (embed_in_game_moves _ _ Left).
   repeat rewrite (embed_in_game_moves _ _ Right).
