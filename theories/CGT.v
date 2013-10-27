@@ -342,4 +342,10 @@ Qed.
 We've developed the foundations of combinatorial game theory, showing
 how it can model combinatorial games in a simple yet general way. We
 haven't explored yet how to use this representation in practice to
-study games, something I plan to do on future posts. *)
+study games, something I plan to do on future posts.
+
+_Update_: I'll leave the list of posts in this series here.
+
+- #<a href="/posts/2013-10-27-summing-combinatorial-games.html">#Summing combinatorial games#</a>#
+
+*)
