@@ -6,31 +6,34 @@ Require Import Coq.Relations.Relation_Operators.
 
 Require Import CGT.
 (* end hide *)
-
 (** In the #<a
 href="/posts/2013-09-08-an-introduction-to-combinatorial-game-theory.html">#previous
 post#</a>#, we've introduced the concept of _combinatorial game_ and
-saw how we can employ a simple formalism to model all such
-combinatorial games uniformly. We will now begin to see what this
-point of view can bring us by defining a _sum_ operation over
-combinatorial games.
+saw how we can employ a simple formalism to model all such games
+uniformly, the [game] type. To see what this point of view can bring
+us, we'll discuss the idea of _summing_ combinatorial games, which can
+be used to analyze games by decomposing them into smaller, simpler
+ones. As we'll see, this notion has a straightforward computational
+interpretation for the [game] type, making it convenient to
+manipulate and reason about.
 
-The intuition behind this operation is that often games evolve to a
-point where they can be decomposed into two smaller games being played
-simultaneously. During each player's turn, they choose in which
-subgame to make a move and yield to the next player.
+The intuition behind summing games is that they often evolve to a
+point where they can be seen as several smaller ones being played
+"simultaneously". In go, for instance, the board is progressively
+partioned into different regions, and each player must choose in which
+of those to play during their turn. This suggests a representation
+where the state of a game is given by the product of the states of the
+subgames. To make a move, a player modifies the state of one of the
+subgames according to its rules, leaving the rest of the state
+untouched.
 
-We will first define the sum of two [combinatorial_game]s, and then
-see how this definition admits a simple computational interpretation
-over the [game] type.
-
-The above discussion suggests a model where the state for the sum of
-two games is given by pairing each game's state. The list of possible
-moves is just the combination of the moves for each subgame. To prove
-that this results in a terminating game, it suffices to observe that
-the [valid_move] relation in this case is equivalent to the product of
-two well-founded relations, and the Coq standard library provides
-lemmas for dealing with this case. *)
+To define the sum of two combinatorial games (as given by the
+[combinatorial_game] type), we can simply combine the lists of moves
+available for each game component. We must still show that this
+results in a terminating game, but it suffices to observe that the
+[valid_move] relation in this case is equivalent to the product of two
+well-founded relations, and the Coq standard library provides lemmas
+for dealing with this case. *)
 
 Definition cg_pair_order {cg1 cg2} :=
   symprod _ _ (valid_move cg1) (valid_move cg2).
@@ -68,10 +71,11 @@ Next Obligation.
 Qed.
 
 (** A problem with this definition is that it is not directly amenable
-to calculations. We can overcome this problem by defining game sums
-directly over the [game] type. A naive adaptation doesn't work, as
-recursive calls to [sum] don't have a single decreasing argument,
-e.g. *)
+to computation. We can overcome this problem by defining game sums
+directly over the [game] type. Since [game] is universal, we can hope
+this should be enough to define what a sum of games is generically. A
+naive adaptation doesn't work, as recursive calls to [sum] don't have
+a single decreasing argument, e.g. *)
 
 Fail Fixpoint sum (g1 g2 : game) : game :=
   Game (map_game game_as_cg g1 Left (fun g1' P => sum g1' g2) ++
@@ -80,9 +84,9 @@ Fail Fixpoint sum (g1 g2 : game) : game :=
         map_game game_as_cg g2 Right (fun g2' P => sum g1 g2')).
 (* Error: Cannot guess decreasing argument of fix. *)
 
-(** One solution is again to pair both arguments and combine [Fix]
-with [cg_pair_order]. We can use the [refine] tactic to avoid
-providing explicit proof arguments: *)
+(** One solution is again to pair both arguments and use the [Fix]
+combinator with [cg_pair_order_wf]. Manipulating proof terms in the
+recursive calls can be made less awkward by using the [refine] tactic: *)
 
 Definition sum (g1 g2 : game) : game.
   refine (
@@ -124,7 +128,7 @@ Qed.
 
 (** The name [sum] suggests that combinatorial games could behave like
 numbers. We won't discuss this correspondence in much detail for now,
-but some interesting identities start popping up already: *)
+but some interesting identities do show up already: *)
 
 Lemma zero_plus_zero : sum zero zero = zero.
 (* begin hide *)
