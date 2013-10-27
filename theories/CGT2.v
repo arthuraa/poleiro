@@ -8,7 +8,7 @@ Require Import CGT.
 (* end hide *)
 
 (** In the #<a
-href="2013-09-08-an-introduction-to-combinatorial-game-theory.html">#previous
+href="/posts/2013-09-08-an-introduction-to-combinatorial-game-theory.html">#previous
 post#</a>#, we've introduced the concept of _combinatorial game_ and
 saw how we can employ a simple formalism to model all such
 combinatorial games uniformly. We will now begin to see what this
