@@ -302,12 +302,13 @@ Lemma embed_in_game_eq cg (pos : position cg) :
        (map (embed_in_game cg) (moves cg Right pos)).
 Proof.
   unfold embed_in_game in *.
-  rewrite Fix_eq;
+  rewrite Fix_eq.
   (* ... *)
   (* begin hide *)
-  intros; f_equal;
-  solve [ apply map_game_map; reflexivity
-        | apply map_game_ext; intros; eauto ].
+  - intros.
+    f_equal; apply map_game_map; reflexivity.
+  - intros.
+    f_equal; apply map_game_ext; intros; eauto.
   (* end hide *)
 Qed.
 
