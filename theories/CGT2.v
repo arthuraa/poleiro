@@ -3,6 +3,37 @@ Require Import Coq.Init.Wf.
 Require Import Coq.Wellfounded.Lexicographic_Product.
 Require Import Coq.Relations.Relation_Operators.
 Require Import CGT.
+Definition game_pair_order {cg1 cg2 : combinatorial_game} :=
+  symprod _ _ (valid_move cg1) (valid_move cg2).
+Definition game_pair_order_wf cg1 cg2 : well_founded game_pair_order :=
+  wf_symprod _ _ _ _ (finite_game cg1) (finite_game cg2).
+
+Program Definition sum_cg (cg1 cg2 : combinatorial_game)
+                          : combinatorial_game :=
+  {| position := (position cg1 * position cg2);
+     moves p pos := map (fun pos1' => (pos1', snd pos))
+                        (moves cg1 p (fst pos)) ++
+                    map (fun pos2' => (fst pos, pos2'))
+                        (moves cg2 p (snd pos)) |}.
+Next Obligation.
+  match goal with
+    | |- well_founded ?R =>
+      assert (EQ : RelationClasses.relation_equivalence R game_pair_order)
+  end.
+  { intros [pos1' pos2'] [pos1 pos2]. split.
+    - intros [p H].
+      apply in_app_or in H.
+      repeat rewrite in_map_iff in H.
+      destruct H as [(pos1'' & H1 & H2) | (pos2'' & H1 & H2)];
+      simpl in *; inversion H1; subst; clear H1;
+      constructor (solve [eexists; eauto]).
+    - intros H.
+      inversion H as [? ? [p H'] ?|? ? [p H'] ?]; subst; clear H;
+      exists p; rewrite in_app_iff; repeat rewrite in_map_iff;
+      simpl; eauto. }
+  rewrite EQ.
+  apply game_pair_order_wf.
+Qed.
 
 Fail Fixpoint sum (g1 g2 : game) : game :=
   match g1, g2 with
@@ -10,11 +41,6 @@ Fail Fixpoint sum (g1 g2 : game) : game :=
       Game (map (fun g1 => sum g1 g2) l1 ++ map (fun g2 => sum g1 g2) l2)
            (map (fun g1 => sum g1 g2) r1 ++ map (fun g2 => sum g1 g2) r2)
   end.
-
-Definition game_pair_order {cg1 cg2 : combinatorial_game} :=
-  symprod _ _ (valid_move cg1) (valid_move cg2).
-Definition game_pair_order_wf cg1 cg2 : well_founded game_pair_order :=
-  wf_symprod _ _ _ _ (finite_game cg1) (finite_game cg2).
 
 Definition sum (g1 g2 : game) : game.
   refine (
@@ -47,33 +73,6 @@ Proof.
     do 2 f_equal; apply map_game_map; reflexivity.
   - clear. intros [g1 g2] f g EXT.
     do 2 f_equal; apply map_game_ext; eauto.
-Qed.
-
-Program Definition sum_cg (cg1 cg2 : combinatorial_game)
-                          : combinatorial_game :=
-  {| position := (position cg1 * position cg2);
-     moves p pos := map (fun pos1' => (pos1', snd pos))
-                        (moves cg1 p (fst pos)) ++
-                    map (fun pos2' => (fst pos, pos2'))
-                        (moves cg2 p (snd pos)) |}.
-Next Obligation.
-  match goal with
-    | |- well_founded ?R =>
-      assert (EQ : RelationClasses.relation_equivalence R game_pair_order)
-  end.
-  { intros [pos1' pos2'] [pos1 pos2]. split.
-    - intros [p H].
-      apply in_app_or in H.
-      repeat rewrite in_map_iff in H.
-      destruct H as [(pos1'' & H1 & H2) | (pos2'' & H1 & H2)];
-      simpl in *; inversion H1; subst; clear H1;
-      constructor (solve [eexists; eauto]).
-    - intros H.
-      inversion H as [? ? [p H'] ?|? ? [p H'] ?]; subst; clear H;
-      exists p; rewrite in_app_iff; repeat rewrite in_map_iff;
-      simpl; eauto. }
-  rewrite EQ.
-  apply game_pair_order_wf.
 Qed.
 
 Lemma map_ext_strong :
