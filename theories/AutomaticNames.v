@@ -1,20 +1,19 @@
 (* begin hide *)
 Require Import Omega.
 (* end hide *)
-(** Whenever a user doesn't explicitly name a variable in an Ltac
-script, Coq will automatically generate a fresh name for it. After
-doing some proofs, however, you start to realize that this behavior is
-more of a nuisance than a feature. The heuristics used by Coq when
-choosing new names are hard to predict and depend on the current proof
-state. Thus, a small change in a proof or definition is likely to
-change variables names as well, causing proofs to break. As every
-experienced Coq user knows, trying to figure out whether hypothesis
-[H22] now corresponds to [H9] or [H24] when fixing a proof script
-cannot exactly be described as a pleasant experience, specially when
-the proof script is 2000 lines long and you've spent the last hour
-dealing with similar horrors.
+(** Whenever a user doesn't name a variable in an Ltac script, Coq
+will automatically generate a fresh name for it. After doing some
+proofs, however, you start to realize that this behavior is more of a
+nuisance than a feature. The heuristics used by Coq when choosing new
+names are hard to predict and depend on the current proof state,
+making proofs likely to break whenever a small change is
+introduced. As every experienced Coq user knows, trying to figure out
+whether hypothesis [H22] now corresponds to [H9] or [H24] when fixing
+a complicated proof script cannot exactly be described as a pleasant
+experience, specially when the proof script is 2000 lines long and
+you've spent hours dealing with similar horrors.
 
-When writing robust proof scripts, you should ensure that your code
+When writing robust proof scripts, one must ensure that the code
 doesn't depend on weird automatically chosen names. Here are some tips
 for making the naming problem disappear.
 
