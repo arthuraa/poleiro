@@ -97,84 +97,147 @@ Fixpoint optimal (eggs tries : nat) : nat :=
   | _, _ => 0
   end.
 
-Fixpoint optimal_strategy (eggs tries lower : nat) : strategy :=
-  match tries, eggs with
-  | S tries', S eggs' =>
-    let floor := lower + optimal eggs' tries' in
+Lemma optimal_monotone e e' t t' :
+  e <= e' -> t <= t' -> optimal e t <= optimal e' t'.
+Proof.
+  generalize dependent t'.
+  generalize dependent e'.
+  generalize dependent e.
+  induction t as [|t IH]; intros e e' t' He Ht; simpl; try omega.
+  destruct e as [|e], e' as [|e'], t' as [|t']; try omega.
+  simpl.
+  assert (optimal e t <= optimal e' t') by (apply IH; omega).
+  assert (optimal (S e) t <= optimal (S e') t') by (apply IH; omega).
+  omega.
+Qed.
+
+Lemma optimal_monotone_inv e t t' :
+  optimal (S e) t <= optimal (S e) t' ->
+  t <= t'.
+Proof.
+  generalize dependent t'.
+  generalize dependent e.
+  induction t as [|t IH]; intros e t'; simpl; intros H; try omega.
+  destruct (le_lt_dec t' t) as [LT |]; try omega.
+  assert (optimal (S e) t' <= optimal (S e) t) by (apply optimal_monotone; omega).
+  omega.
+Qed.
+
+Lemma optimal_guesses s :
+  guesses s <= S (optimal (eggs s) (tries s)).
+Proof.
+  induction s as [floor|floor broken IH1 intact IH2]; simpl; try omega.
+  destruct (eggs intact) as [|e'];
+  match goal with
+  | |- context [optimal ?e ?t + _] =>
+    match type of IH1 with
+    | _ <= S ?o =>
+      assert (o <= optimal e t)
+        by (apply optimal_monotone; try omega;
+            eauto using Max.le_max_l, Max.le_max_r)
+    end;
+    match type of IH2 with
+    | _ <= S ?o =>
+      assert (o <= optimal (S e) t)
+        by (apply optimal_monotone; try omega;
+            eauto using Max.le_max_l, Max.le_max_r, le_n_S)
+    end
+  end;
+  omega.
+Qed.
+
+Fixpoint optimal_strategy (e t lower : nat) : strategy :=
+  match t, e with
+  | S t', S e' =>
+    let floor := lower + optimal e' t' in
     Drop floor
-         (optimal_strategy eggs' tries' lower)
-         (optimal_strategy (S eggs') tries' (S floor))
+         (optimal_strategy e' t' lower)
+         (optimal_strategy (S e') t' (S floor))
   | _, _ => Guess lower
   end.
 
-Fixpoint counter (lower : nat) (s : strategy) : nat :=
-  match s with
-  | Guess floor =>
-    if beq_nat floor lower then S lower
-    else lower
-  | Drop floor broken intact =>
-    if leb lower floor then
-      if leb (counter lower broken) floor then counter lower broken
-      else counter (S floor) intact
-    else counter lower intact
-  end.
-
-Lemma counter_lower lower s : lower <= counter lower s.
+Let optimal_strategy_correct_aux e t lower :
+  winning lower (S (optimal e t)) (optimal_strategy e t lower).
 Proof.
   generalize dependent lower.
-  induction s as [floor|floor broken IH1 intact IH2]; intros lower; simpl.
-  - destruct (beq_nat floor lower); try omega.
-  - destruct (leb lower floor) eqn:E; auto.
-    destruct (leb (counter lower broken) floor) eqn:E'; auto.
-    rewrite leb_iff in E.
-    etransitivity; eauto.
-    transitivity (S floor); eauto.
+  generalize dependent e.
+  induction t as [|t' IH]; intros e lower goal BOUNDS; simpl.
+  - destruct e as [|e']; simpl in *; apply beq_nat_true_iff; omega.
+  - destruct e as [|e']; simpl in *;
+    try (apply beq_nat_true_iff; omega).
+    destruct (leb goal (lower + optimal e' t')) eqn:E.
+    + apply IH. apply leb_iff in E. omega.
+    + apply IH. apply leb_iff_conv in E. omega.
 Qed.
 
-Lemma counter_correct lower s :
-  play (counter lower s) s = false.
+Lemma optimal_strategy_eggs e t lower :
+  eggs (optimal_strategy e t lower) = min e t.
 Proof.
   generalize dependent lower.
-  induction s as [floor|floor broken IH1 intact IH2]; intros lower; simpl.
-  - destruct (beq_nat floor lower) eqn:E; trivial.
-    rewrite beq_nat_true_iff in E. subst lower.
-    rewrite beq_nat_false_iff. omega.
-  - destruct (leb lower floor) eqn:E.
-    + destruct (leb (counter lower broken) floor) eqn:E'.
-      * rewrite E'. apply IH1.
-      * destruct (leb (counter (S floor) intact) floor) eqn:E''; eauto.
-        rewrite leb_iff in E''.
-        cut (floor < counter (S floor) intact); try omega.
-        apply counter_lower.
-    + destruct (leb (counter lower intact) floor) eqn:E'; auto.
-      apply leb_iff in E'. apply leb_iff_conv in E.
-      generalize (counter_lower lower intact). omega.
+  generalize dependent e.
+  induction t as [|t IH]; simpl; intros e lower.
+  - now rewrite Min.min_0_r.
+  - destruct e as [|e]; trivial.
+    simpl.
+    rewrite IH. rewrite IH.
+    destruct t as [|t].
+    + simpl. now rewrite Min.min_0_r.
+    + simpl. f_equal.
+      rewrite max_l; trivial.
+      eapply Min.min_glb.
+      * apply Min.le_min_l.
+      * etransitivity; try apply Min.le_min_r.
+        omega.
 Qed.
 
-Lemma counter_minimal lower s goal :
-  lower <= goal < counter lower s -> play goal s = true.
+Lemma optimal_strategy_tries e t lower :
+  tries (optimal_strategy e t lower) = match e with 0 => 0 | _ => t end.
 Proof.
   generalize dependent lower.
-  induction s as [floor|floor broken IH1 intact IH2]; intros lower H; simpl in *.
-  - destruct (beq_nat floor lower) eqn:E; try omega.
-    assert (lower = goal) by omega. subst goal.
-    rewrite beq_nat_true_iff in E. subst.
-    now rewrite <- beq_nat_refl.
-  - destruct (leb goal floor) eqn:E.
-    + rewrite leb_iff in E.
-      destruct (leb lower floor) eqn:E'.
-      * rewrite leb_iff in E'.
-        destruct (leb (counter lower broken) floor) eqn:E''; eauto.
-        rewrite leb_iff_conv in E''. apply (IH1 lower). omega.
-      * rewrite leb_iff_conv in E'. assert (H' := counter_lower lower broken).
-        apply (IH1 lower). omega.
-    + rewrite leb_iff_conv in E.
-      destruct (leb lower floor) eqn:E'.
-      * rewrite leb_iff in E'.
-        destruct (leb (counter lower broken) floor) eqn:E''.
-        { rewrite leb_iff in E''. omega. }
-        rewrite leb_iff_conv in E''.
-        apply (IH2 (S floor)). omega.
-      * rewrite leb_iff_conv in E'.
-        apply (IH2 lower). omega.
+  generalize dependent e.
+  induction t as [|t IH]; simpl; intros [|e] lower; trivial.
+  simpl.
+  repeat rewrite IH.
+  destruct e; trivial.
+  now rewrite Max.max_idempotent.
+Qed.
+
+(*
+Lemma eggs_tries s : eggs s <= tries s.
+Proof.
+  induction s as [floor|floor broken IH1 intact IH2]; simpl; trivial.
+  destruct (eggs intact) as [|e].
+  - apply le_n_S.
+    etransitivity; try eassumption.
+    apply Max.le_max_l.
+  - repeat rewrite Max.succ_max_distr.
+    apply Max.max_lub.
+    + etransitivity; try solve [eapply le_n_S; eassumption].
+      apply Max.le_max_l.
+    + etransitivity; try eassumption.
+      etransitivity; [|eapply Max.le_max_r].
+      omega.
+Qed.
+*)
+
+Theorem optimal_strategy_correct e t lower :
+  is_optimal lower (S (optimal e t)) (optimal_strategy e t lower).
+Proof.
+  split. { apply optimal_strategy_correct_aux. }
+  intros s E WIN.
+  assert (WIN' := le_trans _ _ _
+                           (winning_guesses _ _ _ WIN)
+                           (optimal_guesses s)).
+  apply le_S_n in WIN'.
+  rewrite E in *. clear E.
+  rewrite optimal_strategy_eggs in *.
+  rewrite optimal_strategy_tries.
+  destruct e as [|e]; try omega.
+  assert (B' : optimal (min (S e) t) t <= optimal (min (S e) t) (tries s)).
+  { etransitivity; try eassumption.
+    apply optimal_monotone; try omega.
+    apply Min.le_min_l. }
+  destruct t as [|t]; try omega.
+  eapply optimal_monotone_inv.
+  exact B'.
 Qed.
