@@ -1,11 +1,61 @@
+(* begin hide *)
 Require Import Coq.Arith.Arith.
 Require Import Coq.Lists.List.
 Require Import Omega.
 Import ListNotations.
+(* end hide *)
+(** Let's consider the following problem. Suppose that we are in a
+100-story building. We know that, when dropping an egg from the
+window, that egg will stay intact if we are below a certain
+floor. However, if we repeat the same exercise above that critical
+floor, the egg will break. How can we find this floor and minimize the
+number of egg drops performed in the worst case, if we have only two
+eggs? We suppose that we're allowed to reuse eggs that fall without
+breaking.
+
+To solve this problem, we will begin by formalizing it. We will model
+a playing strategy as a decision tree: *)
 
 Inductive strategy : Type :=
 | Guess (floor : nat)
 | Drop  (floor : nat) (broken intact : strategy).
+
+(** In the above definition, [Guess floor] represents the end of the
+algorithm, when we try to guess at which floor eggs start breaking. If
+[floor] is equal to the goal, we win the game. Otherwise, we
+lose. [Drop floor broken intact] represents an egg drop at [floor]. If
+the egg breaks, we will continue playing with strategy [broken];
+otherwise, we continue with [intact].
+
+Given some floor [goal], it is easy to test whether a given strategy
+will succeed in guessing it. The [play] function is just a translation
+of the above protocol as Coq code: *)
+
+Fixpoint play (goal : nat) (s : strategy) : bool :=
+  match s with
+  | Guess floor => beq_nat floor goal
+  | Drop floor broken intact => play goal (if leb goal floor then broken else intact)
+  end.
+
+(** Our model so far does not take into account some of the
+restrictions of the original problem, namely the number of floors in
+the building and the number of eggs that we can use. Instead of wiring
+those in the problem definition, we will reason about them
+separately. For instance, [winning lower n s] says that [s] is able to
+successfully guess all [n] floors starting from [lower]. *)
+
+Definition winning (lower n : nat) (s : strategy) : Prop :=
+  forall goal, lower <= goal < lower + n -> play goal s = true.
+
+(** As we will see, allowing our count to start from [lower] instead
+of [0] will help us later.
+
+To define what an optimal strategy is, we need to define the two
+missing concepts from our original formulation: how many egg drops a
+strategy performs, and how many eggs it needs in the worst case. These
+can be readily defined as simple functions. Notice that the definition
+of [eggs] is asymmetric, since one of the paths requires us to use one
+extra egg, but not the other. *)
 
 Fixpoint eggs (s : strategy) : nat :=
   match s with
@@ -19,26 +69,21 @@ Fixpoint tries (s : strategy) : nat :=
   | Drop _ broken intact => S (max (tries broken) (tries intact))
   end.
 
-Fixpoint guesses (s : strategy) : nat :=
-  match s with
-  | Guess _ => 1
-  | Drop _ broken intact => guesses broken + guesses intact
-  end.
-
-Fixpoint play (goal : nat) (s : strategy) : bool :=
-  match s with
-  | Guess floor => beq_nat floor goal
-  | Drop floor broken intact => play goal (if leb goal floor then broken else intact)
-  end.
-
-Definition winning (lower n : nat) (s : strategy) : Prop :=
-  forall goal, lower <= goal < lower + n -> play goal s = true.
+(** An optimal strategy, for a given range of floors, is one that has
+a minimal number of tries among all other minimal strategies for the
+same range of floors and same number of eggs. *)
 
 Definition is_optimal (lower n : nat) (s : strategy) : Prop :=
   winning lower n s /\
   forall s', eggs s' = eggs s ->
              winning lower n s' ->
              tries s <= tries s'.
+
+Fixpoint guesses (s : strategy) : nat :=
+  match s with
+  | Guess _ => 1
+  | Drop _ broken intact => guesses broken + guesses intact
+  end.
 
 Lemma winning_inv lower n floor broken intact :
   winning lower n (Drop floor broken intact) ->
