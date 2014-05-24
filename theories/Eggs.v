@@ -202,24 +202,6 @@ Proof.
   now rewrite Max.max_idempotent.
 Qed.
 
-(*
-Lemma eggs_tries s : eggs s <= tries s.
-Proof.
-  induction s as [floor|floor broken IH1 intact IH2]; simpl; trivial.
-  destruct (eggs intact) as [|e].
-  - apply le_n_S.
-    etransitivity; try eassumption.
-    apply Max.le_max_l.
-  - repeat rewrite Max.succ_max_distr.
-    apply Max.max_lub.
-    + etransitivity; try solve [eapply le_n_S; eassumption].
-      apply Max.le_max_l.
-    + etransitivity; try eassumption.
-      etransitivity; [|eapply Max.le_max_r].
-      omega.
-Qed.
-*)
-
 Theorem optimal_strategy_correct e t lower :
   is_optimal lower (S (optimal e t)) (optimal_strategy e t lower).
 Proof.
