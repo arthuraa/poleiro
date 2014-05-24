@@ -19,20 +19,77 @@ Fixpoint tries (s : strategy) : nat :=
   | Drop _ broken intact => S (max (tries broken) (tries intact))
   end.
 
+Fixpoint guesses (s : strategy) : nat :=
+  match s with
+  | Guess _ => 1
+  | Drop _ broken intact => guesses broken + guesses intact
+  end.
+
 Fixpoint play (goal : nat) (s : strategy) : bool :=
   match s with
   | Guess floor => beq_nat floor goal
   | Drop floor broken intact => play goal (if leb goal floor then broken else intact)
   end.
 
-Definition winning (bound : nat) (s : strategy) : Prop :=
-  forall goal, goal < bound -> play goal s = true.
+Definition winning (lower n : nat) (s : strategy) : Prop :=
+  forall goal, lower <= goal < lower + n -> play goal s = true.
 
-Definition is_optimal (bound : nat) (s : strategy) : Prop :=
-  winning bound s /\
+Definition is_optimal (lower n : nat) (s : strategy) : Prop :=
+  winning lower n s /\
   forall s', eggs s' = eggs s ->
-             winning bound s' ->
+             winning lower n s' ->
              tries s <= tries s'.
+
+Lemma winning_inv lower n floor broken intact :
+  winning lower n (Drop floor broken intact) ->
+  exists n1 n2 lower',
+    n = n1 + n2 /\
+    winning lower n1 broken /\
+    winning lower' n2 intact.
+Proof.
+  unfold winning. simpl. intros WIN.
+  destruct (le_lt_dec (lower + n) floor) as [LE | LT].
+  - eexists n, 0, 0.
+    split; try omega.
+    split; try solve [intros; omega].
+    intros goal I.
+    assert (BOUND : goal <= floor) by omega.
+    apply WIN in I.
+    rewrite <- leb_iff in BOUND. now rewrite BOUND in I.
+  - destruct (le_lt_dec lower floor) as [LE' | LT'].
+    + eexists (S floor - lower), (lower + n - S floor), (S floor).
+      split; try omega.
+      split; intros goal I;
+      assert (I' : lower <= goal < lower + n) by omega;
+      apply WIN in I'.
+      * assert (BOUND : goal <= floor) by omega.
+        rewrite <- leb_iff in BOUND. now rewrite BOUND in I'.
+      * assert (BOUND : floor < goal) by omega.
+        rewrite <- leb_iff_conv in BOUND. now rewrite BOUND in I'.
+    + eexists 0, n, lower.
+      split; trivial.
+      split; intros goal I; try omega.
+      assert (BOUND : floor < goal) by omega.
+      apply WIN in I.
+      rewrite <- leb_iff_conv in BOUND. now rewrite BOUND in I.
+Qed.
+
+Lemma winning_guesses lower n s :
+  winning lower n s -> n <= guesses s.
+Proof.
+  generalize dependent n.
+  generalize dependent lower.
+  induction s as [floor|floor broken IH1 intact IH2];
+  intros lower n WIN.
+  - unfold winning in WIN. simpl in WIN.
+    destruct (le_lt_dec n 1) as [?|CONTRA]; trivial.
+    assert (H1 : beq_nat floor lower = true) by (apply WIN; omega).
+    assert (H2 : beq_nat floor (S lower) = true) by (apply WIN; omega).
+    rewrite beq_nat_true_iff in H1, H2. omega.
+  - apply winning_inv in WIN.
+    destruct WIN as (n1 & n2 & lower' & ? & WIN1 & WIN2). subst n. simpl.
+    apply IH1 in WIN1. apply IH2 in WIN2. omega.
+Qed.
 
 Fixpoint optimal (eggs tries : nat) : nat :=
   match tries, eggs with
