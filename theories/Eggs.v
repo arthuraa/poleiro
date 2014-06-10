@@ -79,6 +79,49 @@ Definition is_optimal (lower n : nat) (s : strategy) : Prop :=
              winning lower n s' ->
              tries s <= tries s'.
 
+Fixpoint linear (lower upper : nat) : strategy :=
+  match upper with
+  | 0 => Guess lower
+  | S upper' => Drop lower (Guess lower) (linear (S lower) upper')
+  end.
+
+Lemma linear_correct lower n :
+  winning lower (S n) (linear lower n).
+Proof.
+  generalize dependent lower.
+  induction n as [|n IH]; intros lower goal WIN; simpl.
+  - assert (lower = goal) by omega. subst lower.
+    now rewrite <- beq_nat_refl.
+  - destruct (leb goal lower) eqn:E.
+    + apply leb_iff in E.
+      assert (lower = goal) by omega.
+      subst lower. simpl.
+      now rewrite <- beq_nat_refl.
+    + apply IH.
+      apply leb_iff_conv in E.
+      omega.
+Qed.
+
+Lemma linear_eggs lower n : eggs (linear lower n) = match n with
+                                                    | 0 => 0
+                                                    | _ => 1
+                                                    end.
+Proof.
+  generalize dependent lower.
+  induction n as [|[|n] IH]; intros lower; trivial.
+  replace (eggs (linear lower (S (S n)))) with (eggs (linear (S lower) (S n))); eauto.
+  simpl.
+  now destruct (eggs (linear (S (S lower)) n)).
+Qed.
+
+Lemma linear_tries lower n : tries (linear lower n) = n.
+Proof.
+  generalize dependent lower.
+  induction n as [|n IH]; intros lower; trivial.
+  simpl.
+  now rewrite IH.
+Qed.
+
 Fixpoint guesses (s : strategy) : nat :=
   match s with
   | Guess _ => 1
