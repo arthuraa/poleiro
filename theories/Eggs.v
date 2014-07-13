@@ -131,13 +131,17 @@ Proof.
   now rewrite IH.
 Qed.
 
-Fixpoint guesses (s : strategy) : nat :=
-  match s with
-  | Guess _ => 1
-  | Drop _ broken intact => guesses broken + guesses intact
-  end.
+Lemma winning_inv_guess lower n floor :
+  winning lower n (Guess floor) -> n <= 1.
+Proof.
+  intros WIN.
+  destruct n as [|[|n]]; try omega.
+  assert (play lower (Guess floor) = true) by (apply WIN; omega).
+  assert (play (lower + 1) (Guess floor) = true) by (apply WIN; omega).
+  simpl in *. rewrite beq_nat_true_iff in *. omega.
+Qed.
 
-Lemma winning_inv lower n floor broken intact :
+Lemma winning_inv_drop lower n floor broken intact :
   winning lower n (Drop floor broken intact) ->
   exists n1 n2 lower',
     n = n1 + n2 /\
@@ -171,76 +175,43 @@ Proof.
       rewrite <- leb_iff_conv in BOUND. now rewrite BOUND in I.
 Qed.
 
-Lemma winning_guesses lower n s :
-  winning lower n s -> n <= guesses s.
-Proof.
-  generalize dependent n.
-  generalize dependent lower.
-  induction s as [floor|floor broken IH1 intact IH2];
-  intros lower n WIN.
-  - unfold winning in WIN. simpl in WIN.
-    destruct (le_lt_dec n 1) as [?|CONTRA]; trivial.
-    assert (H1 : beq_nat floor lower = true) by (apply WIN; omega).
-    assert (H2 : beq_nat floor (S lower) = true) by (apply WIN; omega).
-    rewrite beq_nat_true_iff in H1, H2. omega.
-  - apply winning_inv in WIN.
-    destruct WIN as (n1 & n2 & lower' & ? & WIN1 & WIN2). subst n. simpl.
-    apply IH1 in WIN1. apply IH2 in WIN2. omega.
-Qed.
-
-Fixpoint optimal (eggs tries : nat) : nat :=
+Fixpoint optimal (eggs tries : nat) {struct tries} : nat :=
   match tries, eggs with
   | S tries', S eggs' => S (optimal eggs' tries' + optimal (S eggs') tries')
   | _, _ => 0
   end.
 
-Lemma optimal_monotone e e' t t' :
-  e <= e' -> t <= t' -> optimal e t <= optimal e' t'.
-Proof.
-  generalize dependent t'.
-  generalize dependent e'.
-  generalize dependent e.
-  induction t as [|t IH]; intros e e' t' He Ht; simpl; try omega.
-  destruct e as [|e], e' as [|e'], t' as [|t']; try omega.
-  simpl.
-  assert (optimal e t <= optimal e' t') by (apply IH; omega).
-  assert (optimal (S e) t <= optimal (S e') t') by (apply IH; omega).
-  omega.
-Qed.
+Lemma optimal_0_eggs tries : optimal 0 tries = 0.
+Proof. now destruct tries. Qed.
 
-Lemma optimal_monotone_inv e t t' :
-  optimal (S e) t <= optimal (S e) t' ->
-  t <= t'.
+Lemma optimal_optimal :
+  forall t e s lower n,
+    tries s + min 1 e <= t ->
+    eggs s            <= e ->
+    winning lower n s ->
+    n + min 1 e <= S (optimal e t).
 Proof.
-  generalize dependent t'.
-  generalize dependent e.
-  induction t as [|t IH]; intros e t'; simpl; intros H; try omega.
-  destruct (le_lt_dec t' t) as [LT |]; try omega.
-  assert (optimal (S e) t' <= optimal (S e) t) by (apply optimal_monotone; omega).
-  omega.
-Qed.
-
-Lemma optimal_guesses s :
-  guesses s <= S (optimal (eggs s) (tries s)).
-Proof.
-  induction s as [floor|floor broken IH1 intact IH2]; simpl; try omega.
-  destruct (eggs intact) as [|e'];
-  match goal with
-  | |- context [optimal ?e ?t + _] =>
-    match type of IH1 with
-    | _ <= S ?o =>
-      assert (o <= optimal e t)
-        by (apply optimal_monotone; try omega;
-            eauto using Max.le_max_l, Max.le_max_r)
-    end;
-    match type of IH2 with
-    | _ <= S ?o =>
-      assert (o <= optimal (S e) t)
-        by (apply optimal_monotone; try omega;
-            eauto using Max.le_max_l, Max.le_max_r, le_n_S)
-    end
-  end;
-  omega.
+  induction t as [|t IH]; intros e s lower n Ht He WIN;
+  destruct s as [floor|floor broken intact]; try solve [inversion Ht].
+  - apply winning_inv_guess in WIN.
+    destruct e; simpl in *; omega.
+  - apply winning_inv_guess in WIN.
+    destruct e; simpl in *; omega.
+  - apply winning_inv_drop in WIN.
+    destruct WIN as (n1 & n2 & lower' & ? & WIN1 & WIN2). subst n.
+    assert (He' : exists e', e = S e' /\ eggs broken <= e' /\ eggs intact <= S e').
+    { unfold eggs in He. fold eggs in He.
+      destruct e as [|e']; try lia.
+      exists e'. lia. }
+    destruct He' as (e' & ? & Heb & Hei). subst e. clear He.
+    assert (Ht' : tries broken + min 1 e' <= t /\
+                  tries intact + min 1 (S e') <= t).
+    { unfold tries in Ht. fold tries in Ht. lia. }
+    destruct Ht' as [Htb Hti]. clear Ht.
+    pose proof (IH _ _ _ _ Htb Heb WIN1).
+    pose proof (IH _ _ _ _ Hti Hei WIN2).
+    unfold optimal. fold optimal.
+    lia.
 Qed.
 
 Fixpoint optimal_strategy (e t lower : nat) : strategy :=
@@ -279,34 +250,12 @@ Proof.
 Qed.
 
 Lemma optimal_strategy_tries e t lower :
-  tries (optimal_strategy e t lower) = match e with 0 => 0 | _ => t end.
+  tries (optimal_strategy e t lower) = min 1 e * t.
 Proof.
   generalize dependent lower.
   generalize dependent e.
   induction t as [|t IH]; simpl; intros [|e] lower; trivial.
   simpl.
-  repeat rewrite IH.
+  repeat rewrite IH. simpl.
   destruct e; lia.
-Qed.
-
-Theorem optimal_strategy_correct e t lower :
-  is_optimal lower (S (optimal e t)) (optimal_strategy e t lower).
-Proof.
-  split. { apply optimal_strategy_correct_aux. }
-  intros s E WIN.
-  assert (WIN' := le_trans _ _ _
-                           (winning_guesses _ _ _ WIN)
-                           (optimal_guesses s)).
-  apply le_S_n in WIN'.
-  rewrite E in *. clear E.
-  rewrite optimal_strategy_eggs in *.
-  rewrite optimal_strategy_tries.
-  destruct e as [|e]; try omega.
-  assert (B' : optimal (min (S e) t) t <= optimal (min (S e) t) (tries s)).
-  { etransitivity; try eassumption.
-    apply optimal_monotone; try omega.
-    apply Min.le_min_l. }
-  destruct t as [|t]; try omega.
-  eapply optimal_monotone_inv.
-  exact B'.
 Qed.
