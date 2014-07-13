@@ -2,6 +2,7 @@
 Require Import Coq.Arith.Arith.
 Require Import Coq.Lists.List.
 Require Import Omega.
+Require Import Psatz.
 Import ListNotations.
 (* end hide *)
 (** Let's consider the following problem. Suppose that we are in a
@@ -271,19 +272,10 @@ Lemma optimal_strategy_eggs e t lower :
 Proof.
   generalize dependent lower.
   generalize dependent e.
-  induction t as [|t IH]; simpl; intros e lower.
-  - now rewrite Min.min_0_r.
-  - destruct e as [|e]; trivial.
-    simpl.
-    rewrite IH. rewrite IH.
-    destruct t as [|t].
-    + simpl. now rewrite Min.min_0_r.
-    + simpl. f_equal.
-      rewrite max_l; trivial.
-      eapply Min.min_glb.
-      * apply Min.le_min_l.
-      * etransitivity; try apply Min.le_min_r.
-        omega.
+  induction t as [|t IH]; simpl; intros e lower; try lia.
+  destruct e as [|e]; trivial.
+  simpl. repeat rewrite IH.
+  destruct t; simpl; lia.
 Qed.
 
 Lemma optimal_strategy_tries e t lower :
@@ -294,8 +286,7 @@ Proof.
   induction t as [|t IH]; simpl; intros [|e] lower; trivial.
   simpl.
   repeat rewrite IH.
-  destruct e; trivial.
-  now rewrite Max.max_idempotent.
+  destruct e; lia.
 Qed.
 
 Theorem optimal_strategy_correct e t lower :
