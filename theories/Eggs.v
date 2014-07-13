@@ -79,11 +79,19 @@ Definition is_optimal (lower n : nat) (s : strategy) : Prop :=
              winning lower n s' ->
              tries s <= tries s'.
 
-Fixpoint linear (lower upper : nat) : strategy :=
-  match upper with
+(** A simple strategy is to perform linear search, starting at the
+bottom and going up one floor at a time. As soon as the egg breaks, we
+know we've found our goal. *)
+
+Fixpoint linear (lower n : nat) : strategy :=
+  match n with
   | 0 => Guess lower
-  | S upper' => Drop lower (Guess lower) (linear (S lower) upper')
+  | S n' => Drop lower (Guess lower) (linear (S lower) n')
   end.
+
+(** [linear lower n] works for a range of up to [n] floors, and uses
+at most one egg. Unfortunately, it is not very efficient, performing
+[n] tries in the worst case. *)
 
 Lemma linear_correct lower n :
   winning lower (S n) (linear lower n).
