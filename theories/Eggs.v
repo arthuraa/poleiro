@@ -222,6 +222,14 @@ Proof.
       now trivial.
 Qed.
 
+Lemma optimal_optimal' :
+  forall t e s lower n,
+    tries s <= t ->
+    eggs s  <= e ->
+    winning lower n s ->
+    n <= S (optimal e t).
+Admitted.
+
 Fixpoint optimal_strategy (e t lower : nat) : strategy :=
   match t, e with
   | S t', S e' =>
@@ -310,20 +318,18 @@ Proof.
               forall t', t' < t -> S (optimal (S e) t') < goal).
   { subst t. apply (find_root_correct (fun t => S (optimal (S e) t)) goal (S goal)).
     - intros t t' Ht.
-      cut (min 1 (S e) * t + min 1 (S e) <= t' \/ t = t'); try solve [simpl; lia].
-      clear Ht. intros [Ht | Ht]; subst; try lia.
+      replace t with (min 1 (S e) * t) in Ht by (simpl; lia).
       rewrite <- (optimal_strategy_tries (S e) t 0) in Ht.
-      assert (He : max (min (S e) t) (min 1 (S e)) <= S e) by lia.
+      assert (He : (min (S e) t) <= S e) by lia.
       rewrite <- (optimal_strategy_eggs  (S e) t 0) in He.
       assert (WIN := optimal_strategy_correct_aux (S e) t 0).
-      generalize (optimal_optimal _ _ _ _ _ _ Ht He WIN).
-      lia.
-    - assert (Ht : goal + min 1 (S e) <= S goal) by lia.
-      assert (He : max (min 1 goal) (min 1 (S e)) <= (S e)) by lia.
+      now apply (optimal_optimal' _ _ _ _ _ Ht He WIN).
+    - assert (Ht : goal <= S goal) by lia.
+      assert (He : min 1 goal <= (S e)) by lia.
       assert (WIN := linear_correct 0 goal).
       rewrite <- (linear_tries 0 goal) in Ht at 1.
       rewrite <- (linear_eggs 0 goal) in He.
-      generalize (optimal_optimal _ _ _ _ _ _ Ht He WIN).
+      generalize (optimal_optimal' _ _ _ _ _ Ht He WIN).
       lia. }
   destruct H as [H1 H2].
   split.
@@ -333,8 +339,8 @@ Proof.
     rewrite optimal_strategy_eggs in Hs.
     rewrite optimal_strategy_tries. simpl. rewrite plus_0_r.
     destruct (le_lt_dec t (tries s)) as [LE | LT]; trivial.
-    assert (Ht : tries s + 0 <= tries s) by lia.
-    assert (He : max (eggs s) 0 <= S e) by lia.
+    assert (Ht : tries s <= tries s) by lia.
+    assert (He : eggs s <= S e) by lia.
     pose proof (H2 _ LT).
-    pose proof (optimal_optimal _ _ _ _ _ _ Ht He WIN). lia.
+    pose proof (optimal_optimal' _ _ _ _ _ Ht He WIN). lia.
 Qed.
