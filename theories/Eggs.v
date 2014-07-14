@@ -182,53 +182,38 @@ Lemma optimal_0_eggs tries : optimal 0 tries = 0.
 Proof. now destruct tries. Qed.
 
 Lemma optimal_optimal :
-  forall t e s lower n slack,
-    tries s + slack    <= t ->
-    max (eggs s) slack <= e ->
-    winning lower n s ->
-    n + slack <= S (optimal e t).
-Proof.
-  induction t as [|t IH]; intros e s lower n slack Ht He WIN;
-  destruct s as [floor|floor broken intact]; try solve [inversion Ht].
-  - apply winning_inv_guess in WIN.
-    destruct e; simpl in *; omega.
-  - apply winning_inv_guess in WIN.
-    destruct e as [|e]; simpl in *; try lia.
-    destruct slack as [|slack]; simpl in *; try lia.
-    cut (1 + slack <= S (optimal e t)); try lia.
-    apply (IH e (Guess 0) 0 1 slack); simpl; try lia.
-    intros x H. assert (x = 0) by lia. subst x.
-    reflexivity.
-  - apply winning_inv_drop in WIN.
-    destruct WIN as (n1 & n2 & lower' & ? & WIN1 & WIN2). subst n.
-    assert (He' : exists e', e = S e' /\
-                             eggs broken <= e' /\
-                             eggs intact <= S e' /\
-                             slack <= S e').
-    { unfold eggs in He. fold eggs in He.
-      destruct e as [|e']; try lia.
-      exists e'. repeat split; lia. }
-    destruct He' as (e' & ? & Heb & Hei & Hsl). subst e. clear He.
-    assert (Ht' : tries broken + slack <= t /\
-                  tries intact + slack <= t).
-    { unfold tries in Ht. fold tries in Ht. lia. }
-    destruct Ht' as [Htb Hti]. clear Ht.
-    simpl.
-    cut (n1 + pred slack <= S (optimal e' t) /\ n2 + slack <= S (optimal (S e') t)); try lia.
-    split.
-    + apply (IH e' broken lower n1 (pred slack)); try lia.
-      now trivial.
-    + apply (IH (S e') intact lower' n2 slack); try lia.
-      now trivial.
-Qed.
-
-Lemma optimal_optimal' :
   forall t e s lower n,
     tries s <= t ->
     eggs s  <= e ->
     winning lower n s ->
     n <= S (optimal e t).
-Admitted.
+Proof.
+  induction t as [|t IH]; intros e s lower n Ht He WIN;
+  destruct s as [floor|floor broken intact]; try solve [inversion Ht].
+  - apply winning_inv_guess in WIN. lia.
+  - apply winning_inv_guess in WIN.
+    destruct e as [|e]; simpl in *; try lia.
+  - apply winning_inv_drop in WIN.
+    destruct WIN as (n1 & n2 & lower' & ? & WIN1 & WIN2). subst n.
+    assert (He' : exists e', e = S e' /\
+                             eggs broken <= e' /\
+                             eggs intact <= S e').
+    { unfold eggs in He. fold eggs in He.
+      destruct e as [|e']; try lia.
+      exists e'. repeat split; lia. }
+    destruct He' as (e' & ? & Heb & Hei). subst e. clear He.
+    assert (Ht' : tries broken <= t /\
+                  tries intact <= t).
+    { unfold tries in Ht. fold tries in Ht. lia. }
+    destruct Ht' as [Htb Hti]. clear Ht.
+    simpl.
+    cut (n1 <= S (optimal e' t) /\ n2 <= S (optimal (S e') t)); try lia.
+    split.
+    + apply (IH e' broken lower n1); try lia.
+      now trivial.
+    + apply (IH (S e') intact lower' n2); try lia.
+      now trivial.
+Qed.
 
 Fixpoint optimal_strategy (e t lower : nat) : strategy :=
   match t, e with
@@ -323,13 +308,13 @@ Proof.
       assert (He : (min (S e) t) <= S e) by lia.
       rewrite <- (optimal_strategy_eggs  (S e) t 0) in He.
       assert (WIN := optimal_strategy_correct_aux (S e) t 0).
-      now apply (optimal_optimal' _ _ _ _ _ Ht He WIN).
+      now apply (optimal_optimal _ _ _ _ _ Ht He WIN).
     - assert (Ht : goal <= S goal) by lia.
       assert (He : min 1 goal <= (S e)) by lia.
       assert (WIN := linear_correct 0 goal).
       rewrite <- (linear_tries 0 goal) in Ht at 1.
       rewrite <- (linear_eggs 0 goal) in He.
-      generalize (optimal_optimal' _ _ _ _ _ Ht He WIN).
+      generalize (optimal_optimal _ _ _ _ _ Ht He WIN).
       lia. }
   destruct H as [H1 H2].
   split.
@@ -342,5 +327,5 @@ Proof.
     assert (Ht : tries s <= tries s) by lia.
     assert (He : eggs s <= S e) by lia.
     pose proof (H2 _ LT).
-    pose proof (optimal_optimal' _ _ _ _ _ Ht He WIN). lia.
+    pose proof (optimal_optimal _ _ _ _ _ Ht He WIN). lia.
 Qed.
