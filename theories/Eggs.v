@@ -267,3 +267,74 @@ Proof.
   repeat rewrite IH. simpl.
   destruct e; lia.
 Qed.
+
+Fixpoint find_root (f : nat -> nat) (goal n : nat) : nat :=
+  match n with
+  | 0 => 0
+  | S n' =>
+    if leb goal (f n') then
+      find_root f goal n'
+    else
+      S n'
+  end.
+
+Lemma find_root_correct :
+  forall f goal n,
+    (forall x y, x <= y -> f x <= f y) ->
+    goal <= f n ->
+    let x := find_root f goal n in
+    goal <= f x /\
+    forall y, y < x -> f y < goal.
+Proof.
+  intros f goal n MONO START.
+  induction n as [|n IH]; simpl.
+  - split; trivial. intros. lia.
+  - destruct (leb goal (f n)) eqn:E.
+    + rewrite leb_iff in E. now apply IH.
+    + apply leb_iff_conv in E.
+      split; trivial.
+      intros y Hy.
+      assert (f y <= f n) by (apply MONO; lia). lia.
+Qed.
+
+Definition find_optimum e goal :=
+  find_root (fun t => S (optimal e t)) goal (S goal).
+
+Lemma find_optimum_correct :
+  forall e goal,
+    let t := find_optimum (S e) goal in
+    is_optimal 0 goal (optimal_strategy (S e) t 0).
+Proof.
+  intros e goal t.
+  assert (H : goal <= S (optimal (S e) t) /\
+              forall t', t' < t -> S (optimal (S e) t') < goal).
+  { subst t. apply (find_root_correct (fun t => S (optimal (S e) t)) goal (S goal)).
+    - intros t t' Ht.
+      cut (min 1 (S e) * t + min 1 (S e) <= t' \/ t = t'); try solve [simpl; lia].
+      clear Ht. intros [Ht | Ht]; subst; try lia.
+      rewrite <- (optimal_strategy_tries (S e) t 0) in Ht.
+      assert (He : max (min (S e) t) (min 1 (S e)) <= S e) by lia.
+      rewrite <- (optimal_strategy_eggs  (S e) t 0) in He.
+      assert (WIN := optimal_strategy_correct_aux (S e) t 0).
+      generalize (optimal_optimal _ _ _ _ _ _ Ht He WIN).
+      lia.
+    - assert (Ht : goal + min 1 (S e) <= S goal) by lia.
+      assert (He : max (min 1 goal) (min 1 (S e)) <= (S e)) by lia.
+      assert (WIN := linear_correct 0 goal).
+      rewrite <- (linear_tries 0 goal) in Ht at 1.
+      rewrite <- (linear_eggs 0 goal) in He.
+      generalize (optimal_optimal _ _ _ _ _ _ Ht He WIN).
+      lia. }
+  destruct H as [H1 H2].
+  split.
+  - intros x Hx.
+    apply optimal_strategy_correct_aux. lia.
+  - intros s Hs WIN.
+    rewrite optimal_strategy_eggs in Hs.
+    rewrite optimal_strategy_tries. simpl. rewrite plus_0_r.
+    destruct (le_lt_dec t (tries s)) as [LE | LT]; trivial.
+    assert (Ht : tries s + 0 <= tries s) by lia.
+    assert (He : max (eggs s) 0 <= S e) by lia.
+    pose proof (H2 _ LT).
+    pose proof (optimal_optimal _ _ _ _ _ _ Ht He WIN). lia.
+Qed.
