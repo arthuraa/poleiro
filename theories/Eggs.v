@@ -76,7 +76,7 @@ same range of floors and same number of eggs. *)
 
 Definition is_optimal (lower n : nat) (s : strategy) : Prop :=
   winning lower n s /\
-  forall s', eggs s' = eggs s ->
+  forall s', eggs s' <= eggs s ->
              winning lower n s' ->
              tries s <= tries s'.
 
@@ -111,10 +111,7 @@ Proof.
       omega.
 Qed.
 
-Lemma linear_eggs lower n : eggs (linear lower n) = match n with
-                                                    | 0 => 0
-                                                    | _ => 1
-                                                    end.
+Lemma linear_eggs lower n : eggs (linear lower n) = min 1 n.
 Proof.
   generalize dependent lower.
   induction n as [|[|n] IH]; intros lower; trivial.
