@@ -185,33 +185,44 @@ Lemma optimal_0_eggs tries : optimal 0 tries = 0.
 Proof. now destruct tries. Qed.
 
 Lemma optimal_optimal :
-  forall t e s lower n,
-    tries s + min 1 e <= t ->
-    eggs s            <= e ->
+  forall t e s lower n slack,
+    tries s + slack    <= t ->
+    max (eggs s) slack <= e ->
     winning lower n s ->
-    n + min 1 e <= S (optimal e t).
+    n + slack <= S (optimal e t).
 Proof.
-  induction t as [|t IH]; intros e s lower n Ht He WIN;
+  induction t as [|t IH]; intros e s lower n slack Ht He WIN;
   destruct s as [floor|floor broken intact]; try solve [inversion Ht].
   - apply winning_inv_guess in WIN.
     destruct e; simpl in *; omega.
   - apply winning_inv_guess in WIN.
-    destruct e; simpl in *; omega.
+    destruct e as [|e]; simpl in *; try lia.
+    destruct slack as [|slack]; simpl in *; try lia.
+    cut (1 + slack <= S (optimal e t)); try lia.
+    apply (IH e (Guess 0) 0 1 slack); simpl; try lia.
+    intros x H. assert (x = 0) by lia. subst x.
+    reflexivity.
   - apply winning_inv_drop in WIN.
     destruct WIN as (n1 & n2 & lower' & ? & WIN1 & WIN2). subst n.
-    assert (He' : exists e', e = S e' /\ eggs broken <= e' /\ eggs intact <= S e').
+    assert (He' : exists e', e = S e' /\
+                             eggs broken <= e' /\
+                             eggs intact <= S e' /\
+                             slack <= S e').
     { unfold eggs in He. fold eggs in He.
       destruct e as [|e']; try lia.
-      exists e'. lia. }
-    destruct He' as (e' & ? & Heb & Hei). subst e. clear He.
-    assert (Ht' : tries broken + min 1 e' <= t /\
-                  tries intact + min 1 (S e') <= t).
+      exists e'. repeat split; lia. }
+    destruct He' as (e' & ? & Heb & Hei & Hsl). subst e. clear He.
+    assert (Ht' : tries broken + slack <= t /\
+                  tries intact + slack <= t).
     { unfold tries in Ht. fold tries in Ht. lia. }
     destruct Ht' as [Htb Hti]. clear Ht.
-    pose proof (IH _ _ _ _ Htb Heb WIN1).
-    pose proof (IH _ _ _ _ Hti Hei WIN2).
-    unfold optimal. fold optimal.
-    lia.
+    simpl.
+    cut (n1 + pred slack <= S (optimal e' t) /\ n2 + slack <= S (optimal (S e') t)); try lia.
+    split.
+    + apply (IH e' broken lower n1 (pred slack)); try lia.
+      now trivial.
+    + apply (IH (S e') intact lower' n2 slack); try lia.
+      now trivial.
 Qed.
 
 Fixpoint optimal_strategy (e t lower : nat) : strategy :=
