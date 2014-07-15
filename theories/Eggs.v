@@ -87,21 +87,21 @@ Definition is_optimal (range e t : nat) : Prop :=
 bottom and going up one floor at a time. As soon as the egg breaks, we
 know we've found our goal. *)
 
-Fixpoint linear (lower n : nat) : strategy :=
-  match n with
+Fixpoint linear (lower range : nat) : strategy :=
+  match range with
   | 0 => Guess lower
-  | S n' => Drop lower (Guess lower) (linear (S lower) n')
+  | S range' => Drop lower (Guess lower) (linear (S lower) range')
   end.
 
 (** [linear lower n] works for a range of up to [n] floors, and uses
 at most one egg. Unfortunately, it is not very efficient, performing
 [n] tries in the worst case. *)
 
-Lemma linear_winning lower n :
-  winning lower (S n) (linear lower n).
+Lemma linear_winning lower range :
+  winning lower (S range) (linear lower range).
 Proof.
   generalize dependent lower.
-  induction n as [|n IH]; intros lower goal WIN; simpl.
+  induction range as [|range IH]; intros lower goal WIN; simpl.
   - assert (lower = goal) by omega. subst lower.
     now rewrite <- beq_nat_refl.
   - destruct (leb goal lower) eqn:E.
@@ -114,19 +114,19 @@ Proof.
       omega.
 Qed.
 
-Lemma linear_eggs lower n : eggs (linear lower n) = min 1 n.
+Lemma linear_eggs lower range : eggs (linear lower range) = min 1 range.
 Proof.
   generalize dependent lower.
-  induction n as [|[|n] IH]; intros lower; trivial.
-  replace (eggs (linear lower (S (S n)))) with (eggs (linear (S lower) (S n))); eauto.
+  induction range as [|[|range] IH]; intros lower; trivial.
+  replace (eggs (linear lower (S (S range)))) with (eggs (linear (S lower) (S range))); eauto.
   simpl.
-  now destruct (eggs (linear (S (S lower)) n)).
+  now destruct (eggs (linear (S (S lower)) range)).
 Qed.
 
-Lemma linear_tries lower n : tries (linear lower n) = n.
+Lemma linear_tries lower range : tries (linear lower range) = range.
 Proof.
   generalize dependent lower.
-  induction n as [|n IH]; intros lower; trivial.
+  induction range as [|range IH]; intros lower; trivial.
   simpl.
   now rewrite IH.
 Qed.
