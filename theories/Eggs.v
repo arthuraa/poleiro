@@ -305,7 +305,7 @@ Proof.
       assert (He : (min (S e) t) <= S e) by lia.
       rewrite <- (optimal_strategy_eggs  (S e) t 0) in He.
       assert (WIN := optimal_strategy_winning (S e) t 0).
-      now apply (optimal_optimal _ _ _ _ _ Ht He WIN).
+      now eapply optimal_optimal; eauto.
     - assert (Ht : goal <= goal) by lia.
       assert (He : min 1 goal <= (S e)) by lia.
       assert (WIN := linear_correct 0 goal).
