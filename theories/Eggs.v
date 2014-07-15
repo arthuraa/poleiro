@@ -74,10 +74,10 @@ Fixpoint tries (s : strategy) : nat :=
 a minimal number of tries among all other minimal strategies for the
 same range of floors and same number of eggs. *)
 
-Definition is_optimal (lower n : nat) (s : strategy) : Prop :=
-  winning lower n s /\
-  forall s', eggs s' <= eggs s ->
-             winning lower n s' ->
+Definition is_optimal (n : nat) (s : strategy) : Prop :=
+  exists lower, winning lower n s /\
+  forall lower' s', eggs s' <= eggs s ->
+             winning lower' n s' ->
              tries s <= tries s'.
 
 (** A simple strategy is to perform linear search, starting at the
@@ -293,7 +293,7 @@ Definition find_optimum e goal :=
 Lemma find_optimum_correct :
   forall e goal,
     let t := find_optimum (S e) goal in
-    is_optimal 0 goal (optimal_strategy (S e) t 0).
+    is_optimal goal (optimal_strategy (S e) t 0).
 Proof.
   intros e goal t.
   assert (H : goal <= S (optimal (S e) t) /\
@@ -314,10 +314,10 @@ Proof.
       generalize (optimal_optimal _ _ _ _ _ Ht He WIN).
       lia. }
   destruct H as [H1 H2].
-  split.
+  exists 0. split.
   - intros x Hx.
     apply optimal_strategy_winning. lia.
-  - intros s Hs WIN.
+  - intros lower s Hs WIN.
     rewrite optimal_strategy_eggs in Hs.
     rewrite optimal_strategy_tries. simpl. rewrite plus_0_r.
     destruct (le_lt_dec t (tries s)) as [LE | LT]; trivial.
