@@ -178,9 +178,6 @@ Fixpoint optimal (eggs tries : nat) {struct tries} : nat :=
   | _, _ => 0
   end.
 
-Lemma optimal_0_eggs tries : optimal 0 tries = 0.
-Proof. now destruct tries. Qed.
-
 Lemma optimal_optimal :
   forall t e s lower n,
     tries s <= t ->
