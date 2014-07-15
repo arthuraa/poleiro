@@ -74,11 +74,14 @@ Fixpoint tries (s : strategy) : nat :=
 a minimal number of tries among all other minimal strategies for the
 same range of floors and same number of eggs. *)
 
-Definition is_optimal (n : nat) (s : strategy) : Prop :=
-  exists lower, winning lower n s /\
-  forall lower' s', eggs s' <= eggs s ->
-             winning lower' n s' ->
-             tries s <= tries s'.
+Definition is_optimal (range e t : nat) : Prop :=
+  exists s : strategy,
+    eggs s <= e /\
+    tries s = t /\
+    winning 0 range s /\
+    forall s', eggs s' <= e ->
+               winning 0 range s' ->
+               t <= tries s'.
 
 (** A simple strategy is to perform linear search, starting at the
 bottom and going up one floor at a time. As soon as the egg breaks, we
@@ -141,7 +144,7 @@ using at most [e] eggs and [t-1] tries, for the case where our egg
 doens't break at first. We can readily express this idea as
 code. [optimal_range e t] computes the maximal instance size that can
 be solved using [e] eggs and [t] tries at most, while
-[optimal_strategy e t lower] computes a strategy for doing so starting
+[optimal e t lower] computes a strategy for doing so starting
 from floor [lower]. *)
 
 Fixpoint optimal_range (e t : nat) {struct t} : nat :=
@@ -161,10 +164,10 @@ Fixpoint optimal (lower e t : nat) {struct t} : strategy :=
   | _, _ => Guess lower
   end.
 
-(** It is easy to show that [optimal_strategy] indeed uses the
+(** It is easy to show that [optimal] indeed uses the
 resources that we expect. *)
 
-Lemma optimal_strategy_winning lower e t :
+Lemma optimal_winning lower e t :
   winning lower (S (optimal_range e t)) (optimal lower e t).
 Proof.
   generalize dependent lower.
@@ -178,7 +181,7 @@ Proof.
     + apply IH. apply leb_iff_conv in E. omega.
 Qed.
 
-Lemma optimal_strategy_eggs lower e t :
+Lemma optimal_eggs lower e t :
   eggs (optimal lower e t) = min e t.
 Proof.
   generalize dependent lower.
@@ -189,7 +192,7 @@ Proof.
   destruct t; simpl; lia.
 Qed.
 
-Lemma optimal_strategy_tries lower e t :
+Lemma optimal_tries lower e t :
   tries (optimal lower e t) = min 1 e * t.
 Proof.
   generalize dependent lower.
@@ -298,9 +301,9 @@ Proof.
   intros e e' t t' He Ht.
   cut (S (optimal_range e t) <= S (optimal_range e' t')); try lia.
   apply (optimal_range_correct 0 e' t' (optimal 0 e t));
-    [ rewrite optimal_strategy_eggs; lia
-    | rewrite optimal_strategy_tries; destruct e; simpl; lia
-    | apply optimal_strategy_winning ].
+    [ rewrite optimal_eggs; lia
+    | rewrite optimal_tries; destruct e; simpl; lia
+    | apply optimal_winning ].
 Qed.
 
 Lemma optimal_range_lower_bound :
@@ -363,7 +366,7 @@ Definition find_optimum e goal :=
 Lemma find_optimum_correct :
   forall e range,
     let t := find_optimum (S e) range in
-    is_optimal range (optimal 0 (S e) t).
+    is_optimal range (S e) t.
 Proof.
   intros e range t.
   assert (H : range <= S (optimal_range (S e) t) /\
@@ -376,12 +379,12 @@ Proof.
     - cut (range <= optimal_range (S e) range); try lia.
       apply optimal_range_lower_bound. }
   destruct H as [H1 H2].
-  exists 0. split.
+  exists (optimal 0 (S e) t).
+  rewrite optimal_tries, optimal_eggs.
+  repeat split; try lia; simpl; try lia.
   - intros x Hx.
-    apply optimal_strategy_winning. lia.
-  - intros lower s Hs WIN.
-    rewrite optimal_strategy_eggs in Hs.
-    rewrite optimal_strategy_tries. simpl. rewrite plus_0_r.
+    apply optimal_winning. lia.
+  - intros s Hs WIN.
     destruct (le_lt_dec t (tries s)) as [LE | LT]; trivial.
     assert (Ht : tries s <= tries s) by lia.
     assert (He : eggs s <= S e) by lia.
@@ -393,5 +396,5 @@ Qed.
 (** Using this result, we can find the answer for our original problem. *)
 
 Lemma solution :
-  is_optimal 100 (optimal 0 2 14).
+  is_optimal 100 2 14.
 Proof. apply find_optimum_correct. Qed.
