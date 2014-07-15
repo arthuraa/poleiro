@@ -222,7 +222,7 @@ Fixpoint optimal_strategy (e t lower : nat) : strategy :=
   | _, _ => Guess lower
   end.
 
-Let optimal_strategy_correct_aux e t lower :
+Lemma optimal_strategy_winning e t lower :
   winning lower (S (optimal e t)) (optimal_strategy e t lower).
 Proof.
   generalize dependent lower.
@@ -304,7 +304,7 @@ Proof.
       rewrite <- (optimal_strategy_tries (S e) t 0) in Ht.
       assert (He : (min (S e) t) <= S e) by lia.
       rewrite <- (optimal_strategy_eggs  (S e) t 0) in He.
-      assert (WIN := optimal_strategy_correct_aux (S e) t 0).
+      assert (WIN := optimal_strategy_winning (S e) t 0).
       now apply (optimal_optimal _ _ _ _ _ Ht He WIN).
     - assert (Ht : goal <= S goal) by lia.
       assert (He : min 1 goal <= (S e)) by lia.
@@ -316,7 +316,7 @@ Proof.
   destruct H as [H1 H2].
   split.
   - intros x Hx.
-    apply optimal_strategy_correct_aux. lia.
+    apply optimal_strategy_winning. lia.
   - intros s Hs WIN.
     rewrite optimal_strategy_eggs in Hs.
     rewrite optimal_strategy_tries. simpl. rewrite plus_0_r.
