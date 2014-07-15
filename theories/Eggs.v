@@ -286,6 +286,9 @@ Proof.
       now trivial.
 Qed.
 
+(** Combining this lemma with the ranges we had derived for [linear]
+and [optimal], we can prove useful results about [optimal_range]. *)
+
 Lemma optimal_range_monotone :
   forall e e' t t',
     e <= e' ->
@@ -310,6 +313,12 @@ Proof.
     | rewrite linear_tries
     | apply linear_winning ]; lia.
 Qed.
+
+(** Given that [optimal_range] is monotone, we can find what the
+optimal number of tries for a given range is by picking the smallest
+value of [t] such that [range <= S (optimal_range e t)]. We formalize
+this idea by writing a generic function [find_root] that can find such
+values for any monotone function [f], given a suitable initial guess. *)
 
 Fixpoint find_root (f : nat -> nat) (goal n : nat) : nat :=
   match n with
@@ -339,6 +348,14 @@ Proof.
       intros y Hy.
       assert (f y <= f n) by (apply MONO; lia). lia.
 Qed.
+
+(** By instantiating this theorem with [optimal_range] and applying
+the appropriate theorems, we obtain our final result. The proof of
+optimality goes by contradiction. Let [t = find_optimum (S e)
+range]. if we find another strategy [s] such that [eggs s <= S e] and
+[tries s < t], we know that [range <= S (optimal_range (S e) t)] by
+[optimal_range_correct], but we must also have [S (optimal_range (S e)
+t) < range] by the correctness of [find_root]. *)
 
 Definition find_optimum e goal :=
   find_root (fun t => S (optimal_range e t)) goal goal.
@@ -372,3 +389,9 @@ Proof.
     pose proof (optimal_range_correct _ _ _ _ _ He Ht WIN).
     lia.
 Qed.
+
+(** Using this result, we can find the answer for our original problem. *)
+
+Lemma solution :
+  is_optimal 100 (optimal 0 2 14).
+Proof. apply find_optimum_correct. Qed.
