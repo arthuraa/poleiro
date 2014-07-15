@@ -288,7 +288,7 @@ Proof.
 Qed.
 
 Definition find_optimum e goal :=
-  find_root (fun t => S (optimal e t)) goal (S goal).
+  find_root (fun t => S (optimal e t)) goal goal.
 
 Lemma find_optimum_correct :
   forall e goal,
@@ -298,7 +298,7 @@ Proof.
   intros e goal t.
   assert (H : goal <= S (optimal (S e) t) /\
               forall t', t' < t -> S (optimal (S e) t') < goal).
-  { subst t. apply (find_root_correct (fun t => S (optimal (S e) t)) goal (S goal)).
+  { subst t. apply (find_root_correct (fun t => S (optimal (S e) t)) goal goal).
     - intros t t' Ht.
       replace t with (min 1 (S e) * t) in Ht by (simpl; lia).
       rewrite <- (optimal_strategy_tries (S e) t 0) in Ht.
@@ -306,7 +306,7 @@ Proof.
       rewrite <- (optimal_strategy_eggs  (S e) t 0) in He.
       assert (WIN := optimal_strategy_winning (S e) t 0).
       now apply (optimal_optimal _ _ _ _ _ Ht He WIN).
-    - assert (Ht : goal <= S goal) by lia.
+    - assert (Ht : goal <= goal) by lia.
       assert (He : min 1 goal <= (S e)) by lia.
       assert (WIN := linear_correct 0 goal).
       rewrite <- (linear_tries 0 goal) in Ht at 1.
