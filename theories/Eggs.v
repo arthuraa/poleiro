@@ -35,7 +35,8 @@ of the above protocol as Coq code: *)
 Fixpoint play (goal : nat) (s : strategy) : bool :=
   match s with
   | Guess floor => beq_nat floor goal
-  | Drop floor broken intact => play goal (if leb goal floor then broken else intact)
+  | Drop floor broken intact => play goal (if leb goal floor then broken
+                                           else intact)
   end.
 
 (** Our model so far does not take into account some of the
@@ -99,6 +100,7 @@ at most one egg. Unfortunately, it is not very efficient, performing
 
 Lemma linear_winning lower range :
   winning lower (S range) (linear lower range).
+(* begin hide *)
 Proof.
   generalize dependent lower.
   induction range as [|range IH]; intros lower goal WIN; simpl.
@@ -113,8 +115,11 @@ Proof.
       apply leb_iff_conv in E.
       omega.
 Qed.
+(* end hide *)
 
-Lemma linear_eggs lower range : eggs (linear lower range) = min 1 range.
+Lemma linear_eggs lower range :
+  eggs (linear lower range) = min 1 range.
+(* begin hide *)
 Proof.
   generalize dependent lower.
   induction range as [|[|range] IH]; intros lower; trivial.
@@ -122,14 +127,18 @@ Proof.
   simpl.
   now destruct (eggs (linear (S (S lower)) range)).
 Qed.
+(* end hide *)
 
-Lemma linear_tries lower range : tries (linear lower range) = range.
+Lemma linear_tries lower range :
+  tries (linear lower range) = range.
+(* begin hide *)
 Proof.
   generalize dependent lower.
   induction range as [|range IH]; intros lower; trivial.
   simpl.
   now rewrite IH.
 Qed.
+(* end hide *)
 
 (** How can we optimize how many tries we need in the worst case for
 solving a given range of floors? The key insight is to reason by
@@ -169,6 +178,7 @@ resources that we expect. *)
 
 Lemma optimal_winning lower e t :
   winning lower (S (optimal_range e t)) (optimal lower e t).
+(* begin hide *)
 Proof.
   generalize dependent lower.
   generalize dependent e.
@@ -180,9 +190,11 @@ Proof.
     + apply IH. apply leb_iff in E. omega.
     + apply IH. apply leb_iff_conv in E. omega.
 Qed.
+(* end hide *)
 
 Lemma optimal_eggs lower e t :
   eggs (optimal lower e t) = min e t.
+(* begin hide *)
 Proof.
   generalize dependent lower.
   generalize dependent e.
@@ -191,9 +203,11 @@ Proof.
   simpl. repeat rewrite IH.
   destruct t; simpl; lia.
 Qed.
+(* end hide *)
 
 Lemma optimal_tries lower e t :
   tries (optimal lower e t) = min 1 e * t.
+(* begin hide *)
 Proof.
   generalize dependent lower.
   generalize dependent e.
@@ -202,6 +216,7 @@ Proof.
   repeat rewrite IH. simpl.
   destruct e; lia.
 Qed.
+(* end hide *)
 
 (** To actually show optimality, we need to show that [optimal_range]
 indeed computes what it's supposed to. We start by showing two
@@ -209,6 +224,7 @@ inversion lemmas. *)
 
 Lemma winning_inv_guess lower range floor :
   winning lower range (Guess floor) -> range <= 1.
+(* begin hide *)
 Proof.
   intros WIN.
   destruct range as [|[|range]]; try omega.
@@ -216,6 +232,7 @@ Proof.
   assert (play (lower + 1) (Guess floor) = true) by (apply WIN; omega).
   simpl in *. rewrite beq_nat_true_iff in *. omega.
 Qed.
+(* end hide *)
 
 Lemma winning_inv_drop lower range floor broken intact :
   winning lower range (Drop floor broken intact) ->
@@ -223,6 +240,7 @@ Lemma winning_inv_drop lower range floor broken intact :
     range = r1 + r2 /\
     winning lower r1 broken /\
     winning lower' r2 intact.
+(* begin hide *)
 Proof.
   unfold winning. simpl. intros WIN.
   destruct (le_lt_dec (lower + range) floor) as [LE | LT].
@@ -250,6 +268,7 @@ Proof.
       apply WIN in I.
       rewrite <- leb_iff_conv in BOUND. now rewrite BOUND in I.
 Qed.
+(* end hide *)
 
 Lemma optimal_range_correct :
   forall lower e t s range,
@@ -257,6 +276,7 @@ Lemma optimal_range_correct :
     tries s <= t ->
     winning lower range s ->
     range <= S (optimal_range e t).
+(* begin hide *)
 Proof.
   intros lower e t.
   generalize dependent e.
@@ -288,6 +308,7 @@ Proof.
     + apply (IH lower' (S e') intact r2); try lia.
       now trivial.
 Qed.
+(* end hide *)
 
 (** Combining this lemma with the ranges we had derived for [linear]
 and [optimal], we can prove useful results about [optimal_range]. *)
@@ -340,6 +361,7 @@ Lemma find_root_correct :
     let x := find_root f goal n in
     goal <= f x /\
     forall y, y < x -> f y < goal.
+(* begin hide *)
 Proof.
   intros f goal n MONO START.
   induction n as [|n IH]; simpl.
@@ -351,6 +373,7 @@ Proof.
       intros y Hy.
       assert (f y <= f n) by (apply MONO; lia). lia.
 Qed.
+(* end hide *)
 
 (** By instantiating this theorem with [optimal_range] and applying
 the appropriate theorems, we obtain our final result. The proof of
@@ -371,6 +394,8 @@ Proof.
   intros e range t.
   assert (H : range <= S (optimal_range (S e) t) /\
               forall t', t' < t -> S (optimal_range (S e) t') < range).
+  (* By correctness of find_root *)
+  (* begin hide *)
   { subst t.
     apply (find_root_correct (fun t => S (optimal_range (S e) t)) range range).
     - intros t t' Ht.
@@ -378,6 +403,7 @@ Proof.
       apply optimal_range_monotone; lia.
     - cut (range <= optimal_range (S e) range); try lia.
       apply optimal_range_lower_bound. }
+  (* end hide *)
   destruct H as [H1 H2].
   exists (optimal 0 (S e) t).
   rewrite optimal_tries, optimal_eggs.
@@ -388,7 +414,9 @@ Proof.
     destruct (le_lt_dec t (tries s)) as [LE | LT]; trivial.
     assert (Ht : tries s <= tries s) by lia.
     assert (He : eggs s <= S e) by lia.
+    (* optimal_range < range *)
     pose proof (H2 _ LT).
+    (* range <= optimal_range *)
     pose proof (optimal_range_correct _ _ _ _ _ He Ht WIN).
     lia.
 Qed.
