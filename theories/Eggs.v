@@ -5,59 +5,45 @@ Require Import Omega.
 Require Import Psatz.
 Import ListNotations.
 (* end hide *)
-(** Let's consider the following problem. Suppose that we are in a
-100-story building. We know that, when dropping an egg from the
-window, that egg will stay intact if we are below a certain
-floor. However, if we repeat the same exercise above that critical
-floor, the egg will break. How can we find this floor and minimize the
-number of egg drops performed in the worst case, if we have only two
-eggs? We suppose that we're allowed to reuse eggs that fall without
-breaking.
+(** Consider the following problem. Suppose we are in a 100-story
+building. We know that, when dropping an egg from the window, the egg
+will stay intact if we are below a certain floor. However, if we
+repeat the same exercise above that critical floor, the egg will
+break. How can we find this floor and minimize the number of egg drops
+performed in the worst case if we have only two eggs? We suppose that
+we are allowed to reuse eggs that fall without breaking.
 
-To solve this problem, we will begin by formalizing it. We will model
-a playing strategy as a decision tree: *)
+We will see how we can model this problem in Coq and find a correct
+solution. We model a playing strategy as a decision tree: *)
 
 Inductive strategy : Type :=
 | Guess (floor : nat)
 | Drop  (floor : nat) (broken intact : strategy).
 
 (** In the above definition, [Guess floor] represents the end of the
-algorithm, when we try to guess at which floor eggs start breaking. If
-[floor] is equal to the goal, we win the game. Otherwise, we
-lose. [Drop floor broken intact] represents an egg drop at [floor]. If
-the egg breaks, we will continue playing with strategy [broken];
-otherwise, we continue with [intact].
+algorithm, when we try to guess the target floor. If [floor] is equal
+to the target, we win the game; otherwise, we lose. [Drop floor broken
+intact] represents an egg drop at [floor]. If the egg breaks, we
+continue playing with strategy [broken]; otherwise, we continue with
+[intact].
 
-Given some floor [goal], it is easy to test whether a given strategy
-will succeed in guessing it. The [play] function is just a translation
-of the above protocol as Coq code: *)
+Simulating an egg-drop game is just a matter of performing a tree
+search. [play target s] returns [true] if and only if strategy [s]
+succeeds in guessing floor [target]. *)
 
-Fixpoint play (goal : nat) (s : strategy) : bool :=
+Fixpoint play (target : nat) (s : strategy) : bool :=
   match s with
-  | Guess floor => beq_nat floor goal
-  | Drop floor broken intact => play goal (if leb goal floor then broken
-                                           else intact)
+  | Guess floor =>
+    beq_nat floor target
+  | Drop floor broken intact =>
+    play target (if leb target floor then broken
+                 else intact)
   end.
 
-(** Our model so far does not take into account some of the
-restrictions of the original problem, namely the number of floors in
-the building and the number of eggs that we can use. Instead of wiring
-those in the problem definition, we will reason about them
-separately. For instance, [winning lower n s] says that [s] is able to
-successfully guess all [n] floors starting from [lower]. *)
-
-Definition winning (lower n : nat) (s : strategy) : Prop :=
-  forall goal, lower <= goal < lower + n -> play goal s = true.
-
-(** As we will see, allowing our count to start from [lower] instead
-of [0] will help us later.
-
-To define what an optimal strategy is, we need to define the two
-missing concepts from our original formulation: how many egg drops a
-strategy performs, and how many eggs it needs in the worst case. These
-can be readily defined as simple functions. Notice that the definition
-of [eggs] is asymmetric, since one of the paths requires us to use one
-extra egg, but not the other. *)
+(** We can also find how many eggs a strategy needs and how many drops
+are performed in the worst case. [drops] just computes the strategy
+tree height, whereas [eggs] computes a "skewed" height, where right
+branches do not add to the final value. *)
 
 Fixpoint eggs (s : strategy) : nat :=
   match s with
@@ -65,28 +51,35 @@ Fixpoint eggs (s : strategy) : nat :=
   | Drop _ broken intact => max (S (eggs broken)) (eggs intact)
   end.
 
-Fixpoint tries (s : strategy) : nat :=
+Fixpoint drops (s : strategy) : nat :=
   match s with
   | Guess _ => 0
-  | Drop _ broken intact => S (max (tries broken) (tries intact))
+  | Drop _ broken intact => S (max (drops broken) (drops intact))
   end.
 
-(** An optimal strategy, for a given range of floors, is one that has
-a minimal number of tries among all other minimal strategies for the
-same range of floors and same number of eggs. *)
+(** Finally, using these concepts, we can describe what the solution
+for our problem is. [winning lower range s] says that strategy [s] is
+able to find [range] target floors starting at [lower], while
+[is_optimal range e d] states that there is a winning strategy for
+guessing [range] target floors, uses at most [e] eggs and performing
+at most [d] drops, such that [d] is the smallest possible number. *)
 
-Definition is_optimal (range e t : nat) : Prop :=
+Definition winning (lower range : nat) (s : strategy) : Prop :=
+  forall target, lower <= target < lower + range ->
+                 play target s = true.
+
+Definition is_optimal (range e d : nat) : Prop :=
   exists s : strategy,
     eggs s <= e /\
-    tries s = t /\
+    drops s = d /\
     winning 0 range s /\
     forall s', eggs s' <= e ->
                winning 0 range s' ->
-               t <= tries s'.
+               d <= drops s'.
 
 (** A simple strategy is to perform linear search, starting at the
 bottom and going up one floor at a time. As soon as the egg breaks, we
-know we've found our goal. *)
+know we've found our target. *)
 
 Fixpoint linear (lower range : nat) : strategy :=
   match range with
@@ -96,19 +89,19 @@ Fixpoint linear (lower range : nat) : strategy :=
 
 (** [linear lower n] works for a range of up to [n] floors, and uses
 at most one egg. Unfortunately, it is not very efficient, performing
-[n] tries in the worst case. *)
+[n] drops in the worst case. *)
 
 Lemma linear_winning lower range :
   winning lower (S range) (linear lower range).
 (* begin hide *)
 Proof.
   generalize dependent lower.
-  induction range as [|range IH]; intros lower goal WIN; simpl.
-  - assert (lower = goal) by omega. subst lower.
+  induction range as [|range IH]; intros lower target WIN; simpl.
+  - assert (lower = target) by omega. subst lower.
     now rewrite <- beq_nat_refl.
-  - destruct (leb goal lower) eqn:E.
+  - destruct (leb target lower) eqn:E.
     + apply leb_iff in E.
-      assert (lower = goal) by omega.
+      assert (lower = target) by omega.
       subst lower. simpl.
       now rewrite <- beq_nat_refl.
     + apply IH.
@@ -129,8 +122,8 @@ Proof.
 Qed.
 (* end hide *)
 
-Lemma linear_tries lower range :
-  tries (linear lower range) = range.
+Lemma linear_drops lower range :
+  drops (linear lower range) = range.
 (* begin hide *)
 Proof.
   generalize dependent lower.
@@ -140,81 +133,81 @@ Proof.
 Qed.
 (* end hide *)
 
-(** How can we optimize how many tries we need in the worst case for
+(** How can we optimize how many drops we need in the worst case for
 solving a given range of floors? The key insight is to reason by
 _duality_ and, instead, ask "what is the largest instance of our
 problem that we can solve with a given maximum number of eggs and
-tries?" When looking at the problem this way, it becomes clear that
+drops?" When looking at the problem this way, it becomes clear that
 optimality has a recursive structure that is easy to describe: to find
-a floor using at most [e] eggs and [t] tries, we need to combine two
-optimal strategies: one using at most [e-1] eggs and [t-1] tries, for
+a floor using at most [e] eggs and [d] drops, we need to combine two
+optimal strategies: one using at most [e-1] eggs and [d-1] drops, for
 the case where our first drop causes the egg to break, and another
-using at most [e] eggs and [t-1] tries, for the case where our egg
+using at most [e] eggs and [d-1] drops, for the case where our egg
 doens't break at first. We can readily express this idea as
-code. [optimal_range e t] computes the maximal instance size that can
-be solved using [e] eggs and [t] tries at most, while
-[optimal e t lower] computes a strategy for doing so starting
+code. [optimal_range e d] computes the maximal instance size that can
+be solved using [e] eggs and [d] drops at most, while
+[optimal e d lower] computes a strategy for doing so starting
 from floor [lower]. *)
 
-Fixpoint optimal_range_minus_1 (e t : nat) {struct t} : nat :=
-  match t, e with
-  | S t', S e' => S (optimal_range_minus_1 e' t' +
-                     optimal_range_minus_1 (S e') t')
+Fixpoint optimal_range_minus_1 (e d : nat) {struct d} : nat :=
+  match d, e with
+  | S d', S e' => S (optimal_range_minus_1 e' d' +
+                     optimal_range_minus_1 (S e') d')
   | _, _ => 0
   end.
 
-Definition optimal_range e t := S (optimal_range_minus_1 e t).
+Definition optimal_range e d := S (optimal_range_minus_1 e d).
 
-Fixpoint optimal (lower e t : nat) {struct t} : strategy :=
-  match t, e with
-  | S t', S e' =>
-    let floor := lower + optimal_range_minus_1 e' t' in
+Fixpoint optimal (lower e d : nat) {struct d} : strategy :=
+  match d, e with
+  | S d', S e' =>
+    let floor := lower + optimal_range_minus_1 e' d' in
     Drop floor
-         (optimal lower e' t')
-         (optimal (S floor) (S e') t')
+         (optimal lower e' d')
+         (optimal (S floor) (S e') d')
   | _, _ => Guess lower
   end.
 
 (** It is easy to show that [optimal] indeed uses the
 resources that we expect. *)
 
-Lemma optimal_winning lower e t :
-  winning lower (optimal_range e t) (optimal lower e t).
+Lemma optimal_winning lower e d :
+  winning lower (optimal_range e d) (optimal lower e d).
 (* begin hide *)
 Proof.
   generalize dependent lower.
   generalize dependent e.
   unfold optimal_range.
-  induction t as [|t' IH]; intros e lower goal BOUNDS; simpl.
+  induction d as [|d' IH]; intros e lower target BOUNDS; simpl.
   - destruct e as [|e']; simpl in *; apply beq_nat_true_iff; omega.
   - destruct e as [|e']; simpl in *;
     try (apply beq_nat_true_iff; omega).
-    destruct (leb goal (lower + optimal_range_minus_1 e' t')) eqn:E.
+    destruct (leb target (lower + optimal_range_minus_1 e' d')) eqn:E.
     + apply IH. apply leb_iff in E. omega.
     + apply IH. apply leb_iff_conv in E. omega.
 Qed.
 (* end hide *)
 
-Lemma optimal_eggs lower e t :
-  eggs (optimal lower e t) = min e t.
+Lemma optimal_eggs lower e d :
+  eggs (optimal lower e d) = min e d.
 (* begin hide *)
 Proof.
   generalize dependent lower.
   generalize dependent e.
-  induction t as [|t IH]; simpl; intros e lower; try lia.
+  induction d as [|d IH]; simpl; intros e lower; try lia.
   destruct e as [|e]; trivial.
   simpl. repeat rewrite IH.
-  destruct t; simpl; lia.
+  destruct d; simpl; lia.
 Qed.
 (* end hide *)
 
-Lemma optimal_tries lower e t :
-  tries (optimal lower e t) = min 1 e * t.
+Lemma optimal_drops lower e d :
+  drops (optimal lower e d) = min 1 e * d.
 (* begin hide *)
 Proof.
   generalize dependent lower.
   generalize dependent e.
-  induction t as [|t IH]; simpl; intros [|e] lower; trivial.
+  induction d as [|d IH]; simpl; intros [|e] lower; trivial.
   simpl.
   repeat rewrite IH. simpl.
   destruct e; lia.
@@ -250,43 +243,43 @@ Proof.
   - eexists range, 0, 0.
     split; try omega.
     split; try solve [intros; omega].
-    intros goal I.
-    assert (BOUND : goal <= floor) by omega.
+    intros target I.
+    assert (BOUND : target <= floor) by omega.
     apply WIN in I.
     rewrite <- leb_iff in BOUND. now rewrite BOUND in I.
   - destruct (le_lt_dec lower floor) as [LE' | LT'].
     + eexists (S floor - lower), (lower + range - S floor), (S floor).
       split; try omega.
-      split; intros goal I;
-      assert (I' : lower <= goal < lower + range) by omega;
+      split; intros target I;
+      assert (I' : lower <= target < lower + range) by omega;
       apply WIN in I'.
-      * assert (BOUND : goal <= floor) by omega.
+      * assert (BOUND : target <= floor) by omega.
         rewrite <- leb_iff in BOUND. now rewrite BOUND in I'.
-      * assert (BOUND : floor < goal) by omega.
+      * assert (BOUND : floor < target) by omega.
         rewrite <- leb_iff_conv in BOUND. now rewrite BOUND in I'.
     + eexists 0, range, lower.
       split; trivial.
-      split; intros goal I; try omega.
-      assert (BOUND : floor < goal) by omega.
+      split; intros target I; try omega.
+      assert (BOUND : floor < target) by omega.
       apply WIN in I.
       rewrite <- leb_iff_conv in BOUND. now rewrite BOUND in I.
 Qed.
 (* end hide *)
 
 Lemma optimal_range_correct :
-  forall lower e t s range,
+  forall lower e d s range,
     eggs s  <= e ->
-    tries s <= t ->
+    drops s <= d ->
     winning lower range s ->
-    range <= optimal_range e t.
+    range <= optimal_range e d.
 (* begin hide *)
 Proof.
-  intros lower e t.
+  intros lower e d.
   generalize dependent e.
   generalize dependent lower.
   unfold optimal_range.
-  induction t as [|t IH]; intros lower e s range He Ht WIN;
-  destruct s as [floor|floor broken intact]; try solve [inversion Ht].
+  induction d as [|d IH]; intros lower e s range He Hd WIN;
+  destruct s as [floor|floor broken intact]; try solve [inversion Hd].
   - apply winning_inv_guess in WIN. lia.
   - apply winning_inv_guess in WIN.
     destruct e as [|e]; simpl in *; try lia.
@@ -299,13 +292,13 @@ Proof.
       destruct e as [|e']; try lia.
       exists e'. repeat split; lia. }
     destruct He' as (e' & ? & Heb & Hei). subst e. clear He.
-    assert (Ht' : tries broken <= t /\
-                  tries intact <= t).
-    { unfold tries in Ht. fold tries in Ht. lia. }
-    destruct Ht' as [Htb Hti]. clear Ht.
+    assert (Hd' : drops broken <= d /\
+                  drops intact <= d).
+    { unfold drops in Hd. fold drops in Hd. lia. }
+    destruct Hd' as [Hdb Hdi]. clear Hd.
     simpl.
-    cut (r1 <= S (optimal_range_minus_1 e' t) /\
-         r2 <= S (optimal_range_minus_1 (S e') t)); try lia.
+    cut (r1 <= S (optimal_range_minus_1 e' d) /\
+         r2 <= S (optimal_range_minus_1 (S e') d)); try lia.
     split.
     + apply (IH lower e' broken r1); try lia.
       now trivial.
@@ -318,58 +311,59 @@ Qed.
 and [optimal], we can prove useful results about [optimal_range]. *)
 
 Lemma optimal_range_monotone :
-  forall e e' t t',
+  forall e e' d d',
     e <= e' ->
-    t <= t' ->
-    optimal_range e t <= optimal_range e' t'.
+    d <= d' ->
+    optimal_range e d <= optimal_range e' d'.
 Proof.
-  intros e e' t t' He Ht.
-  apply (optimal_range_correct 0 e' t' (optimal 0 e t));
+  intros e e' d d' He Hd.
+  apply (optimal_range_correct 0 e' d' (optimal 0 e d));
     [ rewrite optimal_eggs; lia
-    | rewrite optimal_tries; destruct e; simpl; lia
+    | rewrite optimal_drops; destruct e; simpl; lia
     | apply optimal_winning ].
 Qed.
 
 Lemma optimal_range_lower_bound :
-  forall e t, t <= (optimal_range (S e) t).
+  forall e d, d <= (optimal_range (S e) d).
 Proof.
-  intros e t.
-  cut (S t <= optimal_range (S e) t); try lia.
-  apply (optimal_range_correct 0 (S e) t (linear 0 t));
+  intros e d.
+  cut (S d <= optimal_range (S e) d); try lia.
+  apply (optimal_range_correct 0 (S e) d (linear 0 d));
     [ rewrite linear_eggs
-    | rewrite linear_tries
+    | rewrite linear_drops
     | apply linear_winning ]; lia.
 Qed.
 
 (** Given that [optimal_range] is monotone, we can find what the
-optimal number of tries for a given range is by picking the smallest
-value of [t] such that [range <= S (optimal_range e t)]. We formalize
-this idea by writing a generic function [find_root] that can find such
-values for any monotone function [f], given a suitable initial guess. *)
+optimal number of drops for a given range is by picking the smallest
+value of [t] such that [range <= optimal_range e t]. We formalize this
+idea by writing a generic function [find_root] that can find such
+values for any monotone function [f], given a suitable initial
+guess. *)
 
-Fixpoint find_root (f : nat -> nat) (goal n : nat) : nat :=
+Fixpoint find_root (f : nat -> nat) (target n : nat) : nat :=
   match n with
   | 0 => 0
   | S n' =>
-    if leb goal (f n') then
-      find_root f goal n'
+    if leb target (f n') then
+      find_root f target n'
     else
       S n'
   end.
 
 Lemma find_root_correct :
-  forall f goal n,
+  forall f target n,
     (forall x y, x <= y -> f x <= f y) ->
-    goal <= f n ->
-    let x := find_root f goal n in
-    goal <= f x /\
-    forall y, y < x -> f y < goal.
+    target <= f n ->
+    let x := find_root f target n in
+    target <= f x /\
+    forall y, y < x -> f y < target.
 (* begin hide *)
 Proof.
-  intros f goal n MONO START.
+  intros f target n MONO START.
   induction n as [|n IH]; simpl.
   - split; trivial. intros. lia.
-  - destruct (leb goal (f n)) eqn:E.
+  - destruct (leb target (f n)) eqn:E.
     + rewrite leb_iff in E. now apply IH.
     + apply leb_iff_conv in E.
       split; trivial.
@@ -382,43 +376,43 @@ Qed.
 the appropriate theorems, we obtain our final result. The proof of
 optimality goes by contradiction. Let [t = find_optimum (S e)
 range]. if we find another strategy [s] such that [eggs s <= S e] and
-[tries s < t], we know that [range <= S (optimal_range (S e) t)] by
-[optimal_range_correct], but we must also have [S (optimal_range (S e)
-t) < range] by the correctness of [find_root]. *)
+[drops s < t], we know that [range <= optimal_range (S e) t] by
+[optimal_range_correct], but we must also have [optimal_range (S e) t
+< range] by the correctness of [find_root]. *)
 
-Definition find_optimum e goal :=
-  find_root (optimal_range e) goal goal.
+Definition find_optimum e target :=
+  find_root (optimal_range e) target target.
 
 Lemma find_optimum_correct :
   forall e range,
-    let t := find_optimum (S e) range in
-    is_optimal range (S e) t.
+    let d := find_optimum (S e) range in
+    is_optimal range (S e) d.
 Proof.
-  intros e range t.
-  assert (H : range <= optimal_range (S e) t /\
-              forall t', t' < t -> optimal_range (S e) t' < range).
+  intros e range d.
+  assert (H : range <= optimal_range (S e) d /\
+              forall d', d' < d -> optimal_range (S e) d' < range).
   (* By correctness of find_root *)
   (* begin hide *)
-  { subst t.
+  { subst d.
     apply (find_root_correct (optimal_range (S e)) range range).
-    - intros t t' Ht.
+    - intros d d' Hd.
       apply optimal_range_monotone; lia.
     - apply optimal_range_lower_bound. }
   (* end hide *)
   destruct H as [H1 H2].
-  exists (optimal 0 (S e) t).
-  rewrite optimal_tries, optimal_eggs.
+  exists (optimal 0 (S e) d).
+  rewrite optimal_drops, optimal_eggs.
   repeat split; try lia; simpl; try lia.
   - intros x Hx.
     apply optimal_winning. lia.
   - intros s Hs WIN.
-    destruct (le_lt_dec t (tries s)) as [LE | LT]; trivial.
-    assert (Ht : tries s <= tries s) by lia.
+    destruct (le_lt_dec d (drops s)) as [LE | LT]; trivial.
+    assert (Hd : drops s <= drops s) by lia.
     assert (He : eggs s <= S e) by lia.
     (* optimal_range < range *)
     pose proof (H2 _ LT).
     (* range <= optimal_range *)
-    pose proof (optimal_range_correct _ _ _ _ _ He Ht WIN).
+    pose proof (optimal_range_correct _ _ _ _ _ He Hd WIN).
     lia.
 Qed.
 
