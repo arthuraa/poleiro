@@ -156,17 +156,19 @@ be solved using [e] eggs and [t] tries at most, while
 [optimal e t lower] computes a strategy for doing so starting
 from floor [lower]. *)
 
-Fixpoint optimal_range (e t : nat) {struct t} : nat :=
+Fixpoint optimal_range_minus_1 (e t : nat) {struct t} : nat :=
   match t, e with
-  | S t', S e' => S (optimal_range e' t' +
-                     optimal_range (S e') t')
+  | S t', S e' => S (optimal_range_minus_1 e' t' +
+                     optimal_range_minus_1 (S e') t')
   | _, _ => 0
   end.
+
+Definition optimal_range e t := S (optimal_range_minus_1 e t).
 
 Fixpoint optimal (lower e t : nat) {struct t} : strategy :=
   match t, e with
   | S t', S e' =>
-    let floor := lower + optimal_range e' t' in
+    let floor := lower + optimal_range_minus_1 e' t' in
     Drop floor
          (optimal lower e' t')
          (optimal (S floor) (S e') t')
@@ -177,16 +179,17 @@ Fixpoint optimal (lower e t : nat) {struct t} : strategy :=
 resources that we expect. *)
 
 Lemma optimal_winning lower e t :
-  winning lower (S (optimal_range e t)) (optimal lower e t).
+  winning lower (optimal_range e t) (optimal lower e t).
 (* begin hide *)
 Proof.
   generalize dependent lower.
   generalize dependent e.
+  unfold optimal_range.
   induction t as [|t' IH]; intros e lower goal BOUNDS; simpl.
   - destruct e as [|e']; simpl in *; apply beq_nat_true_iff; omega.
   - destruct e as [|e']; simpl in *;
     try (apply beq_nat_true_iff; omega).
-    destruct (leb goal (lower + optimal_range e' t')) eqn:E.
+    destruct (leb goal (lower + optimal_range_minus_1 e' t')) eqn:E.
     + apply IH. apply leb_iff in E. omega.
     + apply IH. apply leb_iff_conv in E. omega.
 Qed.
@@ -275,12 +278,13 @@ Lemma optimal_range_correct :
     eggs s  <= e ->
     tries s <= t ->
     winning lower range s ->
-    range <= S (optimal_range e t).
+    range <= optimal_range e t.
 (* begin hide *)
 Proof.
   intros lower e t.
   generalize dependent e.
   generalize dependent lower.
+  unfold optimal_range.
   induction t as [|t IH]; intros lower e s range He Ht WIN;
   destruct s as [floor|floor broken intact]; try solve [inversion Ht].
   - apply winning_inv_guess in WIN. lia.
@@ -300,8 +304,8 @@ Proof.
     { unfold tries in Ht. fold tries in Ht. lia. }
     destruct Ht' as [Htb Hti]. clear Ht.
     simpl.
-    cut (r1 <= S (optimal_range e' t) /\
-         r2 <= S (optimal_range (S e') t)); try lia.
+    cut (r1 <= S (optimal_range_minus_1 e' t) /\
+         r2 <= S (optimal_range_minus_1 (S e') t)); try lia.
     split.
     + apply (IH lower e' broken r1); try lia.
       now trivial.
@@ -320,7 +324,6 @@ Lemma optimal_range_monotone :
     optimal_range e t <= optimal_range e' t'.
 Proof.
   intros e e' t t' He Ht.
-  cut (S (optimal_range e t) <= S (optimal_range e' t')); try lia.
   apply (optimal_range_correct 0 e' t' (optimal 0 e t));
     [ rewrite optimal_eggs; lia
     | rewrite optimal_tries; destruct e; simpl; lia
@@ -331,7 +334,7 @@ Lemma optimal_range_lower_bound :
   forall e t, t <= (optimal_range (S e) t).
 Proof.
   intros e t.
-  cut (S t <= S (optimal_range (S e) t)); try lia.
+  cut (S t <= optimal_range (S e) t); try lia.
   apply (optimal_range_correct 0 (S e) t (linear 0 t));
     [ rewrite linear_eggs
     | rewrite linear_tries
@@ -384,7 +387,7 @@ range]. if we find another strategy [s] such that [eggs s <= S e] and
 t) < range] by the correctness of [find_root]. *)
 
 Definition find_optimum e goal :=
-  find_root (fun t => S (optimal_range e t)) goal goal.
+  find_root (optimal_range e) goal goal.
 
 Lemma find_optimum_correct :
   forall e range,
@@ -392,17 +395,15 @@ Lemma find_optimum_correct :
     is_optimal range (S e) t.
 Proof.
   intros e range t.
-  assert (H : range <= S (optimal_range (S e) t) /\
-              forall t', t' < t -> S (optimal_range (S e) t') < range).
+  assert (H : range <= optimal_range (S e) t /\
+              forall t', t' < t -> optimal_range (S e) t' < range).
   (* By correctness of find_root *)
   (* begin hide *)
   { subst t.
-    apply (find_root_correct (fun t => S (optimal_range (S e) t)) range range).
+    apply (find_root_correct (optimal_range (S e)) range range).
     - intros t t' Ht.
-      cut (optimal_range (S e) t <= optimal_range (S e) t'); try lia.
       apply optimal_range_monotone; lia.
-    - cut (range <= optimal_range (S e) range); try lia.
-      apply optimal_range_lower_bound. }
+    - apply optimal_range_lower_bound. }
   (* end hide *)
   destruct H as [H1 H2].
   exists (optimal 0 (S e) t).
