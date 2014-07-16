@@ -77,7 +77,10 @@ Definition is_optimal (range e d : nat) : Prop :=
                winning 0 range s' ->
                d <= drops s'.
 
-(** A simple strategy is to perform linear search, starting at the
+(** ** A simple first strategy
+
+Before trying to find an optimal solution, let us try to find one that
+works. A simple strategy is to perform linear search, starting at the
 bottom and going up one floor at a time. As soon as the egg breaks, we
 know we've found our target. *)
 
@@ -87,8 +90,8 @@ Fixpoint linear (lower range : nat) : strategy :=
   | S range' => Drop lower (Guess lower) (linear (S lower) range')
   end.
 
-(** [linear lower n] works for a range of up to [n] floors, and uses
-at most one egg. Unfortunately, it is not very efficient, performing
+(** [linear lower range] works on a range of [S range] floors, using
+at most one egg. Because of this, it is not very efficient, performing
 [n] drops in the worst case. *)
 
 Lemma linear_winning lower range :
@@ -234,7 +237,7 @@ find a floor using at most [e] eggs and [d] drops, we need to combine
 two optimal strategies: one using at most [e-1] eggs and [d-1] drops,
 for the case where our first drop causes the egg to break, and another
 using at most [e] eggs and [d-1] drops, for the case where our egg
-doens't break at first. We can readily express this idea as
+does not break at first. We can readily express this idea as
 code. [optimal_range e d] computes the maximal range size that can be
 solved using [e] eggs and [d] drops at most, while [optimal lower e d]
 computes a strategy for doing so starting from floor [lower]. *)
@@ -258,8 +261,8 @@ Fixpoint optimal (lower e d : nat) {struct d} : strategy :=
   | _, _ => Guess lower
   end.
 
-(** It is easy to show that [optimal] indeed uses the
-resources that we expect. *)
+(** It is easy to show that [optimal lower e d] scans [optimal_range e
+d] floors, as well that it uses the resources that we expect. *)
 
 Lemma optimal_winning lower e d :
   winning lower (optimal_range e d) (optimal lower e d).
@@ -305,8 +308,9 @@ Qed.
 (* end hide *)
 
 (** To actually show optimality, we need to show that [optimal_range]
-indeed computes what it's supposed to. We start by showing two
-inversion lemmas. *)
+indeed computes what it is supposed to. We start by showing two
+inversion lemmas, relating the range that is scanned by a winning
+strategy to the range scanned by its sub-strategies. *)
 
 Lemma winning_inv_guess lower range floor :
   winning lower range (Guess floor) -> range <= 1.
