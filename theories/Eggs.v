@@ -133,21 +133,111 @@ Proof.
 Qed.
 (* end hide *)
 
-(** How can we optimize how many drops we need in the worst case for
-solving a given range of floors? The key insight is to reason by
-_duality_ and, instead, ask "what is the largest instance of our
-problem that we can solve with a given maximum number of eggs and
-drops?" When looking at the problem this way, it becomes clear that
-optimality has a recursive structure that is easy to describe: to find
-a floor using at most [e] eggs and [d] drops, we need to combine two
-optimal strategies: one using at most [e-1] eggs and [d-1] drops, for
-the case where our first drop causes the egg to break, and another
+(** ** Improving our strategy
+
+Now that we know a naive search strategy, we will try to find an
+optimal one. Intuitively, it seems that it should be possible to
+perform some form of binary search, starting at the middle of our
+floor range, and continuing recursively depending on the outcome of
+our drop. *)
+
+Definition solution_take_1 : strategy :=
+  Drop 49 (linear 0 49) (linear 50 49).
+
+Lemma solution_take_1_winning :
+  winning 0 100 solution_take_1.
+(* begin hide *)
+Proof.
+  intros target Ht.
+  unfold solution_take_1, play. fold play.
+  destruct (leb target 49) eqn:E.
+  - rewrite leb_iff in E.
+    apply linear_winning.
+    lia.
+  - rewrite leb_iff_conv in E.
+    apply linear_winning.
+    lia.
+Qed.
+(* end hide *)
+
+Lemma solution_take_1_eggs :
+  eggs solution_take_1 = 2.
+(* begin hide *)
+Proof. reflexivity. Qed.
+(* end hide *)
+
+Lemma solution_take_1_drops :
+  drops solution_take_1 = 50.
+(* begin hide *)
+Proof. reflexivity. Qed.
+(* end hide *)
+
+(** Although much better than a pure linear strategy, this is still
+far from being optimal: if our egg doesn't break on our first drop, we
+will still be using at most only one egg on that upper range. If we
+allowed ourselves to break one of them, presumably, we would be able
+to solve the upper range in less than 50 drops, which would in turn
+allow us to perform our first drop at a lower floor, e.g. *)
+
+Definition solution_take_2 : strategy :=
+  Drop 33 (linear 0 33)
+          (Drop 66 (linear 34 32) (linear 67 32)).
+
+Lemma solution_take_2_winning :
+  winning 0 100 solution_take_2.
+(* begin hide *)
+Proof.
+  intros target Ht.
+  unfold solution_take_2, play. fold play.
+  destruct (leb target 33) eqn:E.
+  - rewrite leb_iff in E.
+    apply linear_winning.
+    lia.
+  - rewrite leb_iff_conv in E.
+    unfold play. fold play.
+    destruct (leb target 66) eqn:E'.
+    + rewrite leb_iff in E'.
+      apply linear_winning. lia.
+    + rewrite leb_iff_conv in E'.
+      apply linear_winning. lia.
+Qed.
+(* end hide *)
+
+Lemma solution_take_2_eggs :
+  eggs solution_take_2 = 2.
+(* begin hide *)
+Proof. reflexivity. Qed.
+(* end hide *)
+
+Lemma solution_take_2_drops :
+  drops solution_take_2 = 34.
+(* begin hide *)
+Proof. reflexivity. Qed.
+(* end hide *)
+
+(** Our new solution performs much better, but there is still room for
+improvement. Once again, if our first two drops are below the target
+floor, we will be using only one egg to search through 33 floors,
+which could be done better if we had used both of them. This suggests
+that the optimal strategy should be some form of skewed binary search,
+where the upper range that is produced by an egg drop should use its
+available eggs in an optimal way.
+
+** Finding the optimum
+
+How can we formalize the intuition that we just developed? The key
+insight is to reason by _duality_ and, instead, ask "what is the
+largest range of floors we can scan using at most some number of eggs
+and drops?" When looking at the problem this way, it becomes clear
+that optimality has a recursive structure that is easy to describe: to
+find a floor using at most [e] eggs and [d] drops, we need to combine
+two optimal strategies: one using at most [e-1] eggs and [d-1] drops,
+for the case where our first drop causes the egg to break, and another
 using at most [e] eggs and [d-1] drops, for the case where our egg
 doens't break at first. We can readily express this idea as
-code. [optimal_range e d] computes the maximal instance size that can
-be solved using [e] eggs and [d] drops at most, while
-[optimal e d lower] computes a strategy for doing so starting
-from floor [lower]. *)
+code. [optimal_range e d] computes the maximal range size that can be
+solved using [e] eggs and [d] drops at most, while [optimal lower e d]
+computes a strategy for doing so starting from floor [lower]. *)
 
 Fixpoint optimal_range_minus_1 (e d : nat) {struct d} : nat :=
   match d, e with
