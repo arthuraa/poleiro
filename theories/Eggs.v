@@ -62,7 +62,7 @@ for our problem is. [winning lower range s] says that strategy [s] is
 able to find [range] target floors starting at [lower], while
 [is_optimal range e d] states that there is a winning strategy for
 guessing [range] target floors, uses at most [e] eggs and performing
-at most [d] drops, such that [d] is the smallest possible number. *)
+at most [d] drops, such that [d] is the smallest possible. *)
 
 Definition winning (lower range : nat) (s : strategy) : Prop :=
   forall target, lower <= target < lower + range ->
@@ -82,7 +82,7 @@ Definition is_optimal (range e d : nat) : Prop :=
 Before trying to find an optimal solution, let us try to find one that
 works. A simple strategy is to perform linear search, starting at the
 bottom and going up one floor at a time. As soon as the egg breaks, we
-know we've found our target. *)
+know that we have found our target. *)
 
 Fixpoint linear (lower range : nat) : strategy :=
   match range with
