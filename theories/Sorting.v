@@ -1,4 +1,5 @@
 (* begin hide *)
+Require Import NPeano.
 Require Import Coq.Arith.Arith.
 Require Import Psatz.
 (* end hide *)
@@ -90,6 +91,11 @@ Fixpoint log2loop (n fuel : nat) : nat :=
   end.
 
 Definition log2 (n : nat) : nat := log2loop n n.
+
+Require Import ZArith.
+
+Definition log2' (n : nat) : nat :=
+  Z.to_nat (Z.log2 (Z.of_nat n)).
 
 Lemma log2loop_correct :
   forall n fuel,
@@ -196,62 +202,139 @@ Proof.
   rewrite mult_comm. simpl. lia.
 Qed.
 
-(*
-
-    T.S.:
-    forall n,
-      2 log2 n! >=
-      n log2 n + \sum_i^n [log2 i] - 2^(log2 n) + 1
-
-    2 log2 (n+1)! >=
-    2 log2 (n+1) + 2 log2 n >=
-    2 log2 (n+1) + n log2 n + \sum_i^n [log2 i] - 2^(log2 n) + 1 =
-    log2 (n+1) + n log2 n + \sum_i^(n+1) [log2 i] - 2^(log2 n) + 1
-
-    - case 1: log2 (n+1) = log2 n
-
-      2 log2 (n+1)! >=
-      (n+1) log2 (n+1) + \sum_i^(n+1) [log2 i] - 2^(log2 (n+1)) + 1
-
-    - case 2: log2 (n+1) = log2 n + 1
-
-      2 log2 (n+1)! >=
-      log2 (n+1) + n log2 (n+1) - n - n log2 n
-        + n log2 n + \sum_i^(n+1) [log2 i] - 2^(log2 n) + 1 =
-      (n+1) log2 (n+1) - (n+1) + \sum_i^(n+1) [log2 i]
-        - 2^(log2 n) + 2 =
-      (n+1) log2 (n+2) + \sum_i^(n+1) [log2 i] - 2^(log2 (n+1)) - 2^(log2 n) + 2 =
-      (n+1) log2 (n+2) + \sum_i^(n+1) [log2 i] - 2 * 2^(log2 n) - 2^(log2 n) + 2 =
-      (n+1) log2 (n+2) + \sum_i^(n+1) [log2 i] - 2 * 2^(log2 n) - 2^(log2 n) + 2 =
-*)
+Fixpoint fact' (n : nat) : Z :=
+  match n with
+  | 0 => 1%Z
+  | S n' => (fact' n' * Z.of_nat n)%Z
+  end.
 
 Definition bounds n : nat * nat :=
-  (n * log2 n +
-   summation log2 n -
-   pow2 (log2 n),
-   2 * log2 (fact n)).
+  (n * log2' n +
+   summation log2' n -
+   pow2 (log2' n),
+   2 * Z.to_nat (Z.log2 (fact' n))).
 
-Compute (log2 120).
+Require Import List.
+Import ListNotations.
 
-Definition ub n : nat :=
-  2 * log2 (fact n).
+Fixpoint range (n : nat) : list nat :=
+  match n with
+  | 0 => []
+  | S n' => 0 :: map (plus 1) (range n')
+  end.
 
-Compute
+Definition tests := Eval compute in range 100.
 
+Compute (map bounds tests).
 
+Definition bounds2 n :=
+  (summation log2' n, Z.to_nat (Z.log2 (fact' n))).
 
+Compute (map bounds2 tests).
 
-Lemma log_fact_n_log_n_aux :
+Definition bounds3 n :=
+  (n, Z.to_nat (Z.log2 (fact' n)) + log2' (n + 1),
+   Z.to_nat (Z.log2 (fact' (n + 1)))).
+
+Compute (map bounds3 tests).
+
+Definition bounds4 n :=
+  (n * log2' n +
+   summation log2' n -
+   summation (fun i => pow2 i - 1) (log2' n),
+   Z.to_nat (2 * Z.log2 (fact' n))).
+
+Definition equiv1 n :=
+  (summation (fun i => pow2 i - 1) (log2' n),
+   (2 ^ (Z.log2 (Z.of_nat n) + 1) - 1 - (Z.log2 (Z.of_nat n) + 1))%Z).
+
+Compute (map bounds4 tests).
+
+Compute (map equiv1 tests).
+
+Lemma log2_fact_1 :
   forall n,
     n * log2 n +
-    summation log2 n -
-    pow2 (log2 n) + 1 <=
-    log2 (fact n) * 2.
+    summation log2 n <=
+    log2 (fact n) * 2 +
+    summation (fun i => pow2 i - 1) (log2 n).
 Proof.
   induction n as [|n IH].
-  - simpl. lia.
+  - compute. lia.
   - simpl.
     assert (H : n = 0 \/ 0 < n) by lia.
-    destruct H as [?|POS]; try solve [subst; simpl; lia].
-    destruct (log2_S n POS).
-    + rewrite H.
+    destruct H as [?|POS].
+    { subst. compute. lia. }
+    assert (POS' : 0 < S n) by lia.
+    generalize (log2_mult _ _ (fact_pos n) POS').
+    destruct (log2_S n POS) as [H | [H1 H2]].
+    + rewrite H. lia.
+    + rewrite H1 in *. simpl summation. simpl in H2.
+      rewrite H2. simpl. lia.
+Qed.
+
+Definition bounds5 n :=
+  (n,
+   summation (fun i => pow2 i - 1) (log2' n),
+   summation log2' n).
+
+(* Compute (map bounds5 tests).*)
+
+Lemma sum_pow2 n :
+  summation (fun i => pow2 i - 1) n =
+  pow2 (S n) - n - 2.
+Proof.
+  induction n as [|n IH]; trivial.
+  unfold summation. fold summation.
+  rewrite IH.
+  change (pow2 (S (S n))) with (pow2 (S n) * 2).
+  generalize (pow2_lower_bound (S n)).
+  lia.
+Qed.
+
+Compute (map (fun i => (2 * i, summation log2' i + log2' i + 2)) tests).
+
+Lemma log2_fact_3 n :
+  3 < n ->
+  2 * n <= summation log2 n + log2 n + 2.
+Proof.
+  induction n as [|n IH]; try lia.
+  assert (H : n = 0 \/ n = 1 \/ n = 2 \/ n = 3 \/ 5 <= S n) by lia.
+  destruct H as [H | [H | [H | [H | H]]]]; try (subst; compute; lia).
+  intros _.
+  assert (LB : 3 < n) by lia.
+  apply log2_monotone in H.
+  change (log2 5) with 2 in H.
+  simpl.
+  assert (log2 n <= log2 (S n)) by (apply log2_monotone; lia).
+  lia.
+Qed.
+
+Lemma log2_fact_2 :
+  forall n,
+    summation (fun i => pow2 i - 1) (log2 n) <=
+    summation log2 n.
+Proof.
+  intros n.
+  rewrite sum_pow2.
+  assert (LB := pow2_lower_bound (S (log2 n))).
+  cut (pow2 (S (log2 n)) <= summation log2 n + log2 n + 2); try lia.
+  assert (H : n = 0 \/ n = 1 \/ n = 2 \/ n = 3 \/ 3 < n) by lia.
+  intuition (try (subst n; compute; lia)).
+  cut (pow2 (S (log2 n)) <= 2 * n <= summation log2 n + log2 n + 2); try lia.
+  split.
+  - simpl.
+    assert (H' : 0 < n) by lia.
+    generalize (log2_correct n H'). lia.
+  - now apply log2_fact_3.
+Qed.
+
+Lemma log2_fact_5 n :
+  n * log2 n / 2 <= log2 (fact n).
+Proof.
+  assert (H : n * log2 n <= 2 * log2 (fact n)).
+  { pose proof (log2_fact_1 n).
+    pose proof (log2_fact_2 n).
+    lia. }
+  rewrite (div_mod (n * log2 n) 2) in H; [lia | congruence].
+Qed.
