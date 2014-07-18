@@ -338,3 +338,30 @@ Proof.
     lia. }
   rewrite (div_mod (n * log2 n) 2) in H; [lia | congruence].
 Qed.
+
+Lemma log2_fact_6 n :
+  n * log2 n / 2 <= log2 (fact n).
+Proof.
+  assert (n * log2 n + n * 2 <= log2 (fact n) * 2 + pow2 (log2 n) * 2 + 1).
+  { induction n as [|n IH].
+    - compute. lia.
+    - assert (H : n = 0 \/ n = 1 \/ n = 2 \/ 4 <= S n) by lia.
+      destruct H as [H | [H | [H | H]]]; try (subst n; compute; lia).
+      assert (LB1 := log2_monotone _ _ H).
+      change (log2 4) with 2 in LB1.
+      assert (LB2 : 0 < n) by lia.
+      assert (LB3 : 0 < S n) by lia.
+      clear H.
+      assert (LB4 := log2_mult _ _ (fact_pos n) LB3).
+      simpl.
+      destruct (log2_S _ LB2) as [H | [H1 H2]].
+      + simpl. rewrite H in *. lia.
+      + simpl.
+        assert (B := log2_correct _ LB2).
+        rewrite H1 in *. simpl in H2. simpl.
+        lia. }
+  assert (LB : n = 0 \/ 0 < n) by lia.
+  destruct LB as [LB|LB]; try (subst n; reflexivity).
+  assert (B := log2_correct _ LB).
+  rewrite (div_mod (n * log2 n) 2) in H; lia.
+Qed.
