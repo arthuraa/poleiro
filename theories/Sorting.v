@@ -3,17 +3,6 @@ Require Import NPeano.
 Require Import Coq.Arith.Arith.
 Require Import Psatz.
 (* end hide *)
-Fixpoint fact (n : nat) : nat :=
-  match n with
-  | 0 => 1
-  | S n' => fact n' * n
-  end.
-
-Lemma fact_pos n : 0 < fact n.
-Proof.
-  induction n as [|n IH]; simpl; try lia.
-  rewrite mult_comm. simpl. lia.
-Qed.
 
 Lemma log2_fact_inv n :
   n * log2 n + n * 2 <= log2 (fact n) * 2 + 2 ^ (log2 n) * 2 + 1.
@@ -27,11 +16,11 @@ Proof.
     assert (LB2 : 0 < n) by lia.
     assert (LB3 : 0 < S n) by lia.
     clear H.
-    assert (LB4 := Nat.log2_mul_below _ _ (fact_pos n) LB3).
-    simpl.
+    assert (LB4 := Nat.log2_mul_below _ _ LB3 (lt_O_fact n)).
+    rewrite mult_succ_l.
+    change (fact (S n)) with (S n * fact n).
     destruct (Nat.log2_succ_or n) as [H | H].
-    + simpl.
-      assert (Bn  := log2_spec _ LB2).
+    + assert (Bn  := log2_spec _ LB2).
       assert (BSn := log2_spec _ LB3).
       assert (Hn : 2 ^ (log2 (S n)) = S n).
       { apply Nat.log2_eq_succ_is_pow2 in H.
