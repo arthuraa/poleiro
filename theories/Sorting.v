@@ -9,6 +9,82 @@ Require Import Psatz.
 Set Implicit Arguments.
 (* end hide *)
 
+Fixpoint take {A} (n : nat) (l : list A) : list A :=
+  match n, l with
+  | 0, _ => []
+  | _, [] => l
+  | S n', a :: l' => a :: take n' l'
+  end.
+
+Fixpoint drop {A} (n : nat) (l : list A) : list A :=
+  match n, l with
+  | 0, _ => l
+  | _, [] => []
+  | S n', _ :: l' => drop n' l'
+  end.
+
+Lemma take_drop :
+  forall A n l,
+    take n l ++ drop n l = l :> list A.
+Proof.
+  intros A.
+  induction n as [|n IH]; intros [|a l]; simpl; trivial.
+  - now rewrite IH.
+Qed.
+
+Lemma take_nil :
+  forall A n, take n [] = [] :> list A.
+Proof. now intros A [|?]. Qed.
+
+Lemma take_take :
+  forall A n m l,
+    take n (take m l) = take (min n m) l :> list A.
+Proof.
+  intros A.
+  induction n as [|n IH]; intros [|m] [|a l]; simpl; trivial.
+  now rewrite IH.
+Qed.
+
+Lemma length_take :
+  forall A n (l : list A),
+    length (take n l) = min n (length l).
+Proof.
+  intros A.
+  induction n as [|n IH]; intros [|a l]; simpl; trivial.
+  now rewrite IH.
+Qed.
+
+Lemma take_app :
+  forall A n (l1 l2 : list A),
+    take n (l1 ++ l2) =
+    take n l1 ++ take (n - length l1) l2.
+Proof.
+  intros A.
+  induction n as [|n IH]; intros [|a1 l1] [|a2 l2]; simpl; trivial.
+  - now rewrite take_nil, app_nil_r, app_nil_r.
+  - now rewrite IH.
+Qed.
+
+Lemma drop_app :
+  forall A n (l1 l2 : list A),
+    drop n (l1 ++ l2) =
+    drop n l1 ++ drop (n - length l1) l2.
+Proof.
+  intros A.
+  induction n as [|n IH]; intros [|a1 l1] [|a2 l2]; simpl; trivial.
+Qed.
+
+Lemma drop_all :
+  forall A n (l : list A),
+    length l <= n ->
+    drop n l = [].
+Proof.
+  intros A.
+  induction n as [|n IH]; intros [|a l]; simpl; trivial; try omega.
+  intros H.
+  apply IH; omega.
+Qed.
+
 Definition no_dup {A} (l : list A) :=
   forall a (i j : nat),
     i < length l ->
@@ -129,70 +205,113 @@ Qed.
 
 Section Permutations.
 
-Variable A : Type.
+Definition insert_at {A} (l : list A) (n : nat) (a : A) :=
+  take n l ++ a :: drop n l.
 
-Fixpoint insert_all (a : A) (pre post : list A) : list (list A) :=
-  match post with
-  | [] => [pre ++ [a]]
-  | a' :: post' => (pre ++ a :: post) :: insert_all a (pre ++ [a']) post'
-  end.
-
-Lemma insert_all_length :
-  forall a pre post,
-    length (insert_all a pre post) = S (length post).
-Proof.
-  intros a pre post.
-  generalize dependent pre.
-  induction post as [|a' post IH]; intros pre; simpl; trivial.
-  now rewrite IH.
-Qed.
-
-Lemma insert_all_in :
-  forall l a pre post,
-    In l (insert_all a pre post) ->
-    Permutation l (a :: pre ++ post).
-Proof.
-  intros l a pre post IN.
-  generalize dependent pre.
-  induction post as [|a' post IH]; simpl; intros pre IN.
-  - destruct IN as [? | []].
-    subst l. rewrite app_nil_r.
-    symmetry.
-    apply Permutation_cons_app. rewrite app_nil_r.
-    reflexivity.
-  - destruct IN as [IN | IN].
-    + subst l. symmetry. apply Permutation_middle.
-    + apply IH in IN.
-      rewrite <- app_assoc in IN.
-      assumption.
-Qed.
-
-Lemma insert_all_in' :
-  forall l a pre post,
-    In l (insert_all a pre post) ->
-    exists post1 post2,
-      post = post1 ++ post2 /\
-      l = pre ++ post1 ++ a :: post2.
-Proof.
-  intros l a pre post.
-  generalize dependent pre.
-  induction post as [|a' post IH]; intros pre Hin.
-  - destruct Hin as [Hin | []].
-    subst l. eexists [], []. auto.
-  - destruct Hin as [Hin | Hin].
-    + subst l. eexists [], (a' :: post). eauto.
-    + destruct (IH _ Hin) as (post1 & post2 & H1 & H2).
-      subst post l.
-      exists (a' :: post1), post2.
-      now rewrite <- app_assoc.
-Qed.
-
+(*
 Fixpoint permutations (l : list A) : list (list A) :=
   match l with
   | [] => [[]]
   | a :: l' =>
-    concat (map (insert_all a []) (permutations l'))
+    concat (map (fun p => map (fun n => insert_at p n a)
+                              (seq 0 (length l')))
+                (permutations l'))
   end.
+*)
+
+Fixpoint decode_permutation (n s : nat) : list nat :=
+  match s with
+  | 0 => []
+  | S s' => insert_at (decode_permutation (n mod fact s') s') (n / fact s') s'
+  end.
+
+Lemma permutation_length n s : length (decode_permutation n s) = s.
+Proof.
+  generalize dependent n.
+  induction s as [|s IH]; intros n; simpl; trivial.
+  unfold insert_at.
+  rewrite <- (IH (n mod fact s)) at 8.
+  rewrite <- (take_drop (n / fact s) (decode_permutation _ _)) at 3.
+  repeat rewrite app_length. simpl. omega.
+Qed.
+
+Lemma permutation_range (n s i : nat) :
+  n < fact s ->
+  s <= i ->
+  existsb (beq_nat i) (decode_permutation n s) = false.
+Proof.
+  generalize dependent n.
+  induction s as [|s IH]; simpl; intros n Hn Hi.
+  - assert (n = 0) by omega. now subst n.
+  - assert (existsb (beq_nat i) (decode_permutation (n mod fact s) s) = false).
+    { apply IH; try omega.
+      apply Nat.mod_upper_bound. apply fact_neq_0. }
+    unfold insert_at.
+    rewrite existsb_app. simpl.
+    rewrite <- (take_drop (n / fact s) (decode_permutation (n mod fact s) s)) in H.
+    rewrite existsb_app in H.
+    rewrite Bool.orb_false_iff in H.
+    destruct H as [H1 H2].
+    rewrite H1, H2, Bool.orb_false_r. simpl.
+    rewrite beq_nat_false_iff. omega.
+Qed.
+
+Fixpoint find {A} (p : A -> bool) (l : list A) : nat :=
+  match l with
+  | [] => 0
+  | a :: l' => if p a then 0 else S (find p l')
+  end.
+
+Lemma find_app {A} (p : A -> bool) (l1 l2 : list A) :
+  find p (l1 ++ l2) =
+  if existsb p l1 then find p l1
+  else length l1 + find p l2.
+Proof.
+  induction l1 as [|a l1 IH]; simpl; trivial.
+  destruct (p a); simpl; trivial.
+  rewrite IH.
+  now destruct (existsb p l1).
+Qed.
+
+Fixpoint encode_permutation (p : list nat) (len : nat) : nat :=
+  match len with
+  | 0 => 0
+  | S len' =>
+    let pos := find (beq_nat len') p in
+    pos * fact len' +
+    encode_permutation (take pos p ++ drop (pos + 1) p) len'
+  end.
+
+Lemma encode_decode n s :
+  n < fact s ->
+  encode_permutation (decode_permutation n s) s = n.
+Proof.
+  generalize dependent n.
+  induction s as [|s IH]; simpl; intros n Hn; try omega.
+  assert (H : existsb (beq_nat s) (decode_permutation (n mod fact s) s) = false).
+  { apply permutation_range; try omega.
+    apply Nat.mod_upper_bound.
+    apply fact_neq_0. }
+  rewrite <- (take_drop (n / fact s) _), existsb_app, Bool.orb_false_iff in H.
+  destruct H as [H _].
+  unfold insert_at.
+  rewrite find_app, H, length_take, permutation_length.
+  simpl. rewrite <- beq_nat_refl, plus_0_r.
+  assert (Hn' : n / fact s <= s).
+  { replace (fact s + s * fact s) with (fact s * S s) in Hn by ring.
+    apply Nat.div_lt_upper_bound in Hn; try apply fact_neq_0.
+    omega. }
+  rewrite Min.min_l; try omega.
+  rewrite take_app, take_take, Min.min_idempotent, length_take, permutation_length,
+          Min.min_l, minus_diag, app_nil_r; try omega.
+  rewrite drop_app, length_take, permutation_length, Min.min_l, minus_plus; try omega.
+  simpl.
+  rewrite drop_all, take_drop, IH; try rewrite length_take, permutation_length, Min.min_l; trivial; try omega; simpl.
+  - rewrite mult_comm, <- div_mod; trivial.
+    apply fact_neq_0.
+  - apply Nat.mod_upper_bound.
+    apply fact_neq_0.
+Qed.
 
 Lemma permutations_in :
   forall l l',
