@@ -7,6 +7,7 @@ Import ListNotations.
 Require Import Psatz.
 
 Set Implicit Arguments.
+Open Scope bool_scope.
 (* end hide *)
 
 Fixpoint take {A} (n : nat) (l : list A) : list A :=
@@ -192,6 +193,22 @@ Proof.
     apply fact_neq_0.
 Qed.
 
+Definition apply_permutation (p : list nat) : list nat -> list nat :=
+  map (fun n => nth n p 0).
+
+Fixpoint insert (n : nat) (l : list nat) : list nat :=
+  match l with
+  | [] => [n]
+  | n' :: l' => if leb n n' then n :: n' :: l'
+                else n' :: insert n l'
+  end.
+
+Fixpoint sort (l : list nat) : list nat :=
+  match l with
+  | [] => []
+  | n :: l' => insert n (sort l')
+  end.
+
 Lemma log2_fact_inv n :
   n * log2 n + n * 2 <= log2 (fact n) * 2 + 2 ^ (log2 n) * 2 + 1.
 Proof.
@@ -234,10 +251,98 @@ Qed.
 
 Inductive sorting_algorithm : Type :=
 | Compare (n m : nat) (l r : sorting_algorithm)
-| Done (res : list nat).
+| Done (p : list nat).
 
 Fixpoint comparisons (s : sorting_algorithm) : nat :=
   match s with
-  | Compare _ _ l r => max (comparisons l) (comparisons r)
+  | Compare _ _ l r => S (max (comparisons l) (comparisons r))
   | Done _ => 0
   end.
+
+Fixpoint execute (alg : sorting_algorithm) (xs : list nat) : list nat :=
+  match alg with
+  | Done res => res
+  | Compare n m l r => if leb (nth n xs 0) (nth m xs 0) then
+                         execute r xs
+                       else
+                         execute l xs
+  end.
+
+Definition algorithm_correct (alg : sorting_algorithm) (xs : list nat) : bool :=
+  if list_eq_dec Nat.eq_dec
+                 (apply_permutation (execute alg xs) xs)
+                 (sort xs) then true
+  else false.
+
+Lemma algorithm_correct_compare n m l r xs :
+  algorithm_correct (Compare n m l r) xs = true ->
+  algorithm_correct l xs || algorithm_correct r xs = true.
+Proof.
+  unfold algorithm_correct. simpl.
+  destruct (leb (nth n xs 0) (nth m xs 0)).
+  - destruct (list_eq_dec Nat.eq_dec (apply_permutation (execute r xs) xs) (sort xs));
+    try discriminate.
+    now rewrite Bool.orb_true_r.
+  - destruct (list_eq_dec Nat.eq_dec (apply_permutation (execute l xs) xs) (sort xs));
+    try discriminate.
+    reflexivity.
+Qed.
+
+Definition count {A} (f : A -> bool) (l : list A) : nat :=
+  length (filter f l).
+
+Lemma count_or A (f g : A -> bool) (l : list A) :
+  count (fun a => f a || g a) l <= count f l + count g l.
+Proof.
+  unfold count.
+  induction l as [|a l IH]; simpl; trivial.
+  destruct (f a), (g a); simpl; omega.
+Qed.
+
+Lemma count_impl A (f g : A -> bool) (l : list A) :
+  (forall a, f a = true -> g a = true) ->
+  count f l <= count g l.
+Proof.
+  unfold count.
+  intros H.
+  induction l as [|a l IH]; simpl; trivial.
+  destruct (f a) eqn:E.
+  - rewrite (H _ E). simpl. omega.
+  - destruct (g a); simpl; omega.
+Qed.
+
+Lemma count_ext A (f g : A -> bool) (l : list A) :
+  (forall a, f a = g a) ->
+  count f l = count g l.
+Proof.
+  intros H.
+  cut (count f l <= count g l <= count f l); try solve [intuition lia].
+  split; apply count_impl; intros a; specialize (H a); congruence.
+Qed.
+
+Lemma count_eq_seq : forall s l n, count (beq_nat n) (seq s l) <= 1.
+Proof.
+  intros s l n.
+  cut (count (beq_nat n) (seq s l) =
+       if leb s n && negb (leb (s + l) n) then 1 else 0);
+  try solve [destruct (leb s n && negb (leb (s + l) n)); omega].
+  generalize dependent s.
+  induction l as [|l IH]; intros s; simpl.
+  - rewrite plus_0_r.
+    now destruct (leb s n).
+  - unfold count in *. simpl.
+    destruct (beq_nat n s) eqn:E; simpl.
+    + rewrite IH.
+      rewrite beq_nat_true_iff in E. subst n.
+      rewrite (leb_correct_conv s (S s)); try omega. simpl.
+      rewrite (leb_correct s s); try omega. simpl.
+      now rewrite (leb_correct_conv s (s + S l)); try omega.
+    + rewrite IH.
+      rewrite beq_nat_false_iff in E.
+      rewrite <- plus_n_Sm.
+      cut (leb (S s) n = leb s n).
+      { intros E'. now rewrite E'. }
+      destruct (leb s n) eqn:LE.
+      * rewrite leb_iff in *. omega.
+      * rewrite leb_iff_conv in *. omega.
+Qed.
