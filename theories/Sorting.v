@@ -30,7 +30,7 @@ Lemma take_drop :
 Proof.
   intros A.
   induction n as [|n IH]; intros [|a l]; simpl; trivial.
-  - now rewrite IH.
+  now rewrite IH.
 Qed.
 
 Lemma take_nil :
