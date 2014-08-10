@@ -193,8 +193,8 @@ Proof.
     apply fact_neq_0.
 Qed.
 
-Definition apply_permutation (p : list nat) : list nat -> list nat :=
-  map (fun n => nth n p 0).
+Definition apply_permutation (p l : list nat) : list nat :=
+  map (fun n => nth n l 0) p.
 
 Fixpoint insert (n : nat) (l : list nat) : list nat :=
   match l with
