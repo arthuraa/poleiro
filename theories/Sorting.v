@@ -162,6 +162,17 @@ Fixpoint encode_permutation (p : list nat) (len : nat) : nat :=
     encode_permutation (take pos p ++ drop (pos + 1) p) len'
   end.
 
+Lemma existsb_take_false A (f : A -> bool) (l : list A) (n : nat) :
+  existsb f l = false ->
+  existsb f (take n l) = false.
+Proof.
+  generalize dependent l.
+  induction n as [|n IH]; intros [|a l]; trivial.
+  simpl.
+  destruct (f a); try discriminate.
+  simpl. eauto.
+Qed.
+
 Hint Resolve Nat.mod_upper_bound.
 Hint Resolve fact_neq_0.
 
@@ -196,6 +207,97 @@ Qed.
 
 Definition apply_permutation (p l : list nat) : list nat :=
   map (fun n => nth n l 0) p.
+
+Definition inv_p (p : list nat) : list nat :=
+  map (fun i => find (beq_nat i) p) (seq 0 (length p)).
+
+Lemma list_eq_ext :
+  forall A l1 l2,
+    length l1 = length l2 ->
+    (forall x def, x < length l1 -> nth x l1 def = nth x l2 def) ->
+    l1 = l2 :> list A.
+Proof.
+  intros A.
+  induction l1 as [|a1 l1 IH]; intros [|a2 l2]; simpl; try congruence.
+  intros Hlen Hnth.
+  rewrite (Hnth 0 a1); try omega. f_equal.
+  apply IH.
+  - congruence.
+  - intros x def Hx. apply (Hnth (S x)). omega.
+Qed.
+
+Lemma map_nth' :
+  forall A B d d' (f : A -> B) l x,
+    x < length l ->
+    nth x (map f l) d =
+    f (nth x l d').
+Proof.
+  intros A B d d' f.
+  induction l as [|a l IH]; simpl; intros [|x] Hx; try omega; trivial.
+  apply IH. omega.
+Qed.
+
+Lemma find_permutation :
+  forall s n x,
+    x < s ->
+    find (beq_nat x) (decode_permutation n s) < s.
+Proof.
+  induction s as [|s IH]; intros n x Hx; try omega.
+  simpl.
+  unfold insert_at.
+  assert (H : x = s \/ x < s) by omega. clear Hx.
+  destruct H as [Hx | Hx].
+  - subst x.
+    rewrite find_app, existsb_take_false, length_take, permutation_length;
+    try solve [apply permutation_range; eauto].
+    simpl. rewrite <- beq_nat_refl, plus_0_r. lia.
+  - rewrite find_app. simpl.
+    specialize (IH (n mod fact s) x Hx).
+    rewrite <- (take_drop (n / fact s) (decode_permutation (n mod fact s) s)), find_app in IH.
+    destruct (existsb (beq_nat x) (take (n / fact s) (decode_permutation (n mod fact s) s))); try omega.
+    assert (E : beq_nat x s = false).
+    { rewrite beq_nat_false_iff. omega. }
+    rewrite E. clear E. omega.
+Qed.
+
+Lemma nth_find :
+  forall A (f : A -> bool) l def,
+    find f l < length l ->
+    f (nth (find f l) l def) = true.
+Proof.
+  intros A f l def H.
+  induction l as [|a l IH]; simpl in *.
+  - omega.
+  - destruct (f a) eqn:E; trivial.
+    apply IH.
+    omega.
+Qed.
+
+Lemma inv_p_correct :
+  forall s n,
+    n < fact s ->
+    apply_permutation (inv_p (decode_permutation n s))
+                      (decode_permutation n s) = seq 0 s.
+Proof.
+  intros s n H.
+  apply list_eq_ext.
+  - unfold apply_permutation, inv_p.
+    repeat rewrite map_length.
+    now rewrite permutation_length.
+  - intros x def Hx.
+    unfold apply_permutation, inv_p in *.
+    repeat rewrite map_length in Hx.
+    rewrite seq_length in Hx.
+    rewrite permutation_length in *.
+    repeat rewrite (map_nth' def def).
+    + rewrite seq_nth; trivial. simpl.
+      symmetry. apply beq_nat_true.
+      apply nth_find.
+      rewrite permutation_length.
+      now apply find_permutation.
+    + now rewrite seq_length.
+    + now rewrite map_length, seq_length.
+Qed.
 
 Fixpoint insert (n : nat) (l : list nat) : list nat :=
   match l with
@@ -347,3 +449,4 @@ Proof.
       * rewrite leb_iff in *. omega.
       * rewrite leb_iff_conv in *. omega.
 Qed.
+
