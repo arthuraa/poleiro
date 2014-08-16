@@ -162,6 +162,9 @@ Fixpoint encode_permutation (p : list nat) (len : nat) : nat :=
     encode_permutation (take pos p ++ drop (pos + 1) p) len'
   end.
 
+Hint Resolve Nat.mod_upper_bound.
+Hint Resolve fact_neq_0.
+
 Lemma encode_decode n s :
   n < fact s ->
   encode_permutation (decode_permutation n s) s = n.
@@ -186,11 +189,9 @@ Proof.
           Min.min_l, minus_diag, app_nil_r; try omega.
   rewrite drop_app, length_take, permutation_length, Min.min_l, minus_plus; try omega.
   simpl.
-  rewrite drop_all, take_drop, IH; try rewrite length_take, permutation_length, Min.min_l; trivial; try omega; simpl.
-  - rewrite mult_comm, <- div_mod; trivial.
-    apply fact_neq_0.
-  - apply Nat.mod_upper_bound.
-    apply fact_neq_0.
+  rewrite drop_all, take_drop, IH;
+  try rewrite length_take, permutation_length, Min.min_l; trivial; try omega; simpl; eauto.
+  rewrite mult_comm, <- div_mod; trivial.
 Qed.
 
 Definition apply_permutation (p l : list nat) : list nat :=
