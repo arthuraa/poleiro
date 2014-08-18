@@ -63,16 +63,6 @@ Proof.
   apply IH; omega.
 Qed.
 
-Lemma map_ext_in {A B} (f g : A -> B) (l : list A) :
-  (forall a, In a l -> f a = g a) ->
-  map f l = map g l.
-Proof.
-  induction l as [|a l IH]; intros Hfg; simpl; trivial.
-  f_equal.
-  - apply Hfg. simpl. auto.
-  - apply IH. intros a' Ha'. apply Hfg. simpl. eauto.
-Qed.
-
 Definition insert_at {A} (l : list A) (n : nat) (a : A) :=
   firstn n l ++ a :: skipn n l.
 
