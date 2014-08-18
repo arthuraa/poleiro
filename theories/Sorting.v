@@ -10,75 +10,52 @@ Set Implicit Arguments.
 Open Scope bool_scope.
 (* end hide *)
 
-Fixpoint take {A} (n : nat) (l : list A) : list A :=
-  match n, l with
-  | 0, _ => []
-  | _, [] => l
-  | S n', a :: l' => a :: take n' l'
-  end.
-
-Fixpoint drop {A} (n : nat) (l : list A) : list A :=
-  match n, l with
-  | 0, _ => l
-  | _, [] => []
-  | S n', _ :: l' => drop n' l'
-  end.
-
-Lemma take_drop :
-  forall A n l,
-    take n l ++ drop n l = l :> list A.
-Proof.
-  intros A.
-  induction n as [|n IH]; intros [|a l]; simpl; trivial.
-  now rewrite IH.
-Qed.
-
-Lemma take_nil :
-  forall A n, take n [] = [] :> list A.
+Lemma firstn_nil :
+  forall A n, firstn n [] = [] :> list A.
 Proof. now intros A [|?]. Qed.
 
-Lemma take_take :
+Lemma firstn_firstn :
   forall A n m l,
-    take n (take m l) = take (min n m) l :> list A.
+    firstn n (firstn m l) = firstn (min n m) l :> list A.
 Proof.
   intros A.
   induction n as [|n IH]; intros [|m] [|a l]; simpl; trivial.
   now rewrite IH.
 Qed.
 
-Lemma length_take :
+Lemma length_firstn :
   forall A n (l : list A),
-    length (take n l) = min n (length l).
+    length (firstn n l) = min n (length l).
 Proof.
   intros A.
   induction n as [|n IH]; intros [|a l]; simpl; trivial.
   now rewrite IH.
 Qed.
 
-Lemma take_app :
+Lemma firstn_app :
   forall A n (l1 l2 : list A),
-    take n (l1 ++ l2) =
-    take n l1 ++ take (n - length l1) l2.
+    firstn n (l1 ++ l2) =
+    firstn n l1 ++ firstn (n - length l1) l2.
 Proof.
   intros A.
   induction n as [|n IH]; intros [|a1 l1] [|a2 l2]; simpl; trivial.
-  - now rewrite take_nil, app_nil_r, app_nil_r.
+  - now rewrite firstn_nil, app_nil_r, app_nil_r.
   - now rewrite IH.
 Qed.
 
-Lemma drop_app :
+Lemma skipn_app :
   forall A n (l1 l2 : list A),
-    drop n (l1 ++ l2) =
-    drop n l1 ++ drop (n - length l1) l2.
+    skipn n (l1 ++ l2) =
+    skipn n l1 ++ skipn (n - length l1) l2.
 Proof.
   intros A.
   induction n as [|n IH]; intros [|a1 l1] [|a2 l2]; simpl; trivial.
 Qed.
 
-Lemma drop_all :
+Lemma skipn_all :
   forall A n (l : list A),
     length l <= n ->
-    drop n l = [].
+    skipn n l = [].
 Proof.
   intros A.
   induction n as [|n IH]; intros [|a l]; simpl; trivial; try omega.
@@ -97,7 +74,7 @@ Proof.
 Qed.
 
 Definition insert_at {A} (l : list A) (n : nat) (a : A) :=
-  take n l ++ a :: drop n l.
+  firstn n l ++ a :: skipn n l.
 
 Fixpoint decode_permutation (n s : nat) : list nat :=
   match s with
@@ -111,7 +88,7 @@ Proof.
   induction s as [|s IH]; intros n; simpl; trivial.
   unfold insert_at.
   rewrite <- (IH (n mod fact s)) at 8.
-  rewrite <- (take_drop (n / fact s) (decode_permutation _ _)) at 3.
+  rewrite <- (firstn_skipn (n / fact s) (decode_permutation _ _)) at 3.
   repeat rewrite app_length. simpl. omega.
 Qed.
 
@@ -128,7 +105,7 @@ Proof.
       apply Nat.mod_upper_bound. apply fact_neq_0. }
     unfold insert_at.
     rewrite existsb_app. simpl.
-    rewrite <- (take_drop (n / fact s) (decode_permutation (n mod fact s) s)) in H.
+    rewrite <- (firstn_skipn (n / fact s) (decode_permutation (n mod fact s) s)) in H.
     rewrite existsb_app in H.
     rewrite Bool.orb_false_iff in H.
     destruct H as [H1 H2].
@@ -159,12 +136,12 @@ Fixpoint encode_permutation (p : list nat) (len : nat) : nat :=
   | S len' =>
     let pos := find (beq_nat len') p in
     pos * fact len' +
-    encode_permutation (take pos p ++ drop (pos + 1) p) len'
+    encode_permutation (firstn pos p ++ skipn (pos + 1) p) len'
   end.
 
-Lemma existsb_take_false A (f : A -> bool) (l : list A) (n : nat) :
+Lemma existsb_firstn_false A (f : A -> bool) (l : list A) (n : nat) :
   existsb f l = false ->
-  existsb f (take n l) = false.
+  existsb f (firstn n l) = false.
 Proof.
   generalize dependent l.
   induction n as [|n IH]; intros [|a l]; trivial.
@@ -186,22 +163,22 @@ Proof.
   { apply permutation_range; try omega.
     apply Nat.mod_upper_bound.
     apply fact_neq_0. }
-  rewrite <- (take_drop (n / fact s) _), existsb_app, Bool.orb_false_iff in H.
+  rewrite <- (firstn_skipn (n / fact s) _), existsb_app, Bool.orb_false_iff in H.
   destruct H as [H _].
   unfold insert_at.
-  rewrite find_app, H, length_take, permutation_length.
+  rewrite find_app, H, length_firstn, permutation_length.
   simpl. rewrite <- beq_nat_refl, plus_0_r.
   assert (Hn' : n / fact s <= s).
   { replace (fact s + s * fact s) with (fact s * S s) in Hn by ring.
     apply Nat.div_lt_upper_bound in Hn; try apply fact_neq_0.
     omega. }
   rewrite Min.min_l; try omega.
-  rewrite take_app, take_take, Min.min_idempotent, length_take, permutation_length,
+  rewrite firstn_app, firstn_firstn, Min.min_idempotent, length_firstn, permutation_length,
           Min.min_l, minus_diag, app_nil_r; try omega.
-  rewrite drop_app, length_take, permutation_length, Min.min_l, minus_plus; try omega.
+  rewrite skipn_app, length_firstn, permutation_length, Min.min_l, minus_plus; try omega.
   simpl.
-  rewrite drop_all, take_drop, IH;
-  try rewrite length_take, permutation_length, Min.min_l; trivial; try omega; simpl; eauto.
+  rewrite skipn_all, firstn_skipn, IH;
+  try rewrite length_firstn, permutation_length, Min.min_l; trivial; try omega; simpl; eauto.
   rewrite mult_comm, <- div_mod; trivial.
 Qed.
 
@@ -248,13 +225,13 @@ Proof.
   assert (H : x = s \/ x < s) by omega. clear Hx.
   destruct H as [Hx | Hx].
   - subst x.
-    rewrite find_app, existsb_take_false, length_take, permutation_length;
+    rewrite find_app, existsb_firstn_false, length_firstn, permutation_length;
     try solve [apply permutation_range; eauto].
     simpl. rewrite <- beq_nat_refl, plus_0_r. lia.
   - rewrite find_app. simpl.
     specialize (IH (n mod fact s) x Hx).
-    rewrite <- (take_drop (n / fact s) (decode_permutation (n mod fact s) s)), find_app in IH.
-    destruct (existsb (beq_nat x) (take (n / fact s) (decode_permutation (n mod fact s) s))); try omega.
+    rewrite <- (firstn_skipn (n / fact s) (decode_permutation (n mod fact s) s)), find_app in IH.
+    destruct (existsb (beq_nat x) (firstn (n / fact s) (decode_permutation (n mod fact s) s))); try omega.
     assert (E : beq_nat x s = false).
     { rewrite beq_nat_false_iff. omega. }
     rewrite E. clear E. omega.
