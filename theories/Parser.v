@@ -24,6 +24,10 @@ Definition reader := Parser _ (reader' _ (initial_result pd)) (initial_result pd
 
 End Parser.
 
+Coercion reader : parser_data >-> parser.
+
+Notation "[ x ]" := (get_result _ _ x) (at level 0).
+
 Module ListParser.
 
 Definition parser_data (X : Type) := {|
@@ -36,7 +40,7 @@ Definition parser_data (X : Type) := {|
   build_result := fun _ x f l => f (cons x l)
 |}.
 
-Definition my_list : list nat := get_result _ _ (reader (parser_data nat) 1 2 3 4 5 6 7 8 9 10 11) nil.
+Definition my_list : list nat := [parser_data nat 1 2 3 4 5 6 7 8 9 10 11] nil.
 
 End ListParser.
 
@@ -103,6 +107,6 @@ Notation "!*" := (Internal.Times) (at level 0).
 
 Coercion Internal.Const : nat >-> Internal.token.
 
-Definition my_exp : nat := get_result _ _ (reader parser_data !+ !- 1 2 !+ 4 4).
+Definition my_exp : nat := [parser_data !+ !- 1 2 !+ 4 4].
 
 End ExpParser.
