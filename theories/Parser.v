@@ -28,9 +28,9 @@ Coercion reader : parser_data >-> parser.
 
 Notation "[ x ]" := (get_result _ _ x) (at level 0).
 
-Module ListParser.
+Module List.
 
-Definition parser_data (X : Type) := {|
+Definition p (X : Type) := {|
   state := unit;
   token := X;
   result := fun _ => list X -> list X;
@@ -40,11 +40,11 @@ Definition parser_data (X : Type) := {|
   build_result := fun _ x f l => f (cons x l)
 |}.
 
-Definition my_list : list nat := [parser_data nat 1 2 3 4 5 6 7 8 9 10 11] nil.
+End List.
 
-End ListParser.
+Definition my_list : list nat := [List.p _ 1 2 3 4 5 6 7 8 9 10 11] nil.
 
-Module ExpParser.
+Module Exp.
 
 Module Internal.
 
@@ -91,7 +91,7 @@ Definition build_result n t : result n -> result (next n t) :=
 
 End Internal.
 
-Definition parser_data := {|
+Definition p := {|
   state := Internal.state;
   initial_state := 2;
   token := Internal.token;
@@ -101,12 +101,17 @@ Definition parser_data := {|
   build_result := Internal.build_result
 |}.
 
+Module Exports.
+
 Notation "!+" := (Internal.Plus) (at level 0).
 Notation "!-" := (Internal.Minus) (at level 0).
 Notation "!*" := (Internal.Times) (at level 0).
-
 Coercion Internal.Const : nat >-> Internal.token.
 
-Definition my_exp : nat := [parser_data !+ !- 1 2 !+ 4 4].
+End Exports.
 
-End ExpParser.
+End Exp.
+
+Export Exp.Exports.
+
+Definition my_exp : nat := [Exp.p !+ !- 1 2 !+ 4 4].
