@@ -20,7 +20,7 @@ CoInductive parser (s : state pd) : Type := Parser {
 CoFixpoint reader' s (r : result pd s) : parser s :=
   Parser _ (fun t => reader' _ (build_result pd s t r)) r.
 
-Definition reader := Parser _ (reader' _ (initial_result pd)) (initial_result pd).
+Definition reader := reader' _ (initial_result pd).
 
 End Parser.
 
