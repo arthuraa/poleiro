@@ -118,6 +118,4 @@ Definition exp_parser_data := {|
   build_result := exp_build_result
 |}.
 
-Definition reader_exp := Eval compute in reader exp_parser_data.
-
-Definition my_exp : nat := reader_exp !+ !- !1 !2 !+ !4 !4.
+Definition my_exp : nat := reader exp_parser_data !+ !- !1 !2 !+ !4 !4.
