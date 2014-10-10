@@ -1,9 +1,9 @@
 Inductive parser_data := ParserData {
   state : Type;
-  token : Type;
+  token : state -> Type;
   result : state -> Type;
   initial_state : state;
-  next : state -> token -> state;
+  next : forall s, token s -> state;
   initial_result : result initial_state;
   build_result : forall s t, result s -> result (next s t)
 }.
@@ -32,7 +32,7 @@ Module List.
 
 Definition p (X : Type) := {|
   state := unit;
-  token := X;
+  token := fun _ => X;
   result := fun _ => list X -> list X;
   initial_state := tt;
   next := fun _ _ => tt;
@@ -50,11 +50,17 @@ Module Internal.
 
 Definition state := nat.
 
-Inductive token :=
+Inductive token' :=
 | Plus
 | Minus
 | Times
 | Const (n : nat).
+
+Definition token (n : state) : Type :=
+  match n with
+  | S (S _) => token'
+  | _ => Empty_set
+  end.
 
 Fixpoint result' (n : nat) : Type :=
   match n with
@@ -64,29 +70,31 @@ Fixpoint result' (n : nat) : Type :=
 
 Definition result (n : state) : Type :=
   match n with
-  | 0 => unit
+  | 0 => Empty_set
   | S n => result' n
   end.
 
-Definition next (n : state) (t : token) : state :=
+Definition next (n : state) : token n -> state :=
   match n with
-  | S (S n') => match t with
-                | Plus | Minus | Times => S n
-                | Const _ => S n'
-                end
-  | _ => 0
+  | S (S n') => fun t =>
+                  match t with
+                  | Plus | Minus | Times => S n
+                  | Const _ => S n'
+                  end
+  | _ => fun _ => 0
   end.
 
-Definition build_result n t : result n -> result (next n t) :=
+Definition build_result n : forall t, result n -> result (next n t) :=
   match n with
   | S (S n') =>
-    match t with
-    | Plus => fun res n1 n2 => res (n1 + n2)
-    | Minus => fun res n1 n2 => res (n1 - n2)
-    | Times => fun res n1 n2 => res (n1 * n2)
-    | Const n => fun res => res n
-    end
-  | _ => fun _ => tt
+    fun t =>
+      match t with
+      | Plus => fun res n1 n2 => res (n1 + n2)
+      | Minus => fun res n1 n2 => res (n1 - n2)
+      | Times => fun res n1 n2 => res (n1 * n2)
+      | Const n => fun res => res n
+      end
+  | _ => fun t _ => t
   end.
 
 End Internal.
@@ -106,7 +114,7 @@ Module Exports.
 Notation "!+" := (Internal.Plus) (at level 0).
 Notation "!-" := (Internal.Minus) (at level 0).
 Notation "!*" := (Internal.Times) (at level 0).
-Coercion Internal.Const : nat >-> Internal.token.
+Coercion Internal.Const : nat >-> Internal.token'.
 
 End Exports.
 
