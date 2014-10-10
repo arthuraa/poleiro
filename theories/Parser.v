@@ -10,18 +10,6 @@ Inductive parser_data := ParserData {
   build_result : forall s t, partial_result (Some s) -> partial_result (next s t)
 }.
 
-Notation _next :=
-  (fun pd =>
-     match pd return state pd -> token pd -> option (state pd) with
-     | ParserData _ _ _ _ next _ _ _ _ => next
-     end).
-
-Notation _initial_state :=
-  (fun pd =>
-     match pd return state pd with
-     | ParserData _ initial_state _ _ _ _ _ _ _ => initial_state
-     end).
-
 Section Parser.
 
 Variable pd : parser_data.
@@ -40,13 +28,9 @@ Definition caseR (s : state pd) (p : parser' (Some s)) : forall t, parser' (next
   | PRead _ read => read
   end.
 
-Definition parser s := parser' (Some s).
+Inductive parser s := Parser (p : parser' (Some s)).
 
-Definition read s (p : parser s) : forall t,
-                                     match _next pd s t with
-                                     | Some s' => parser s'
-                                     | None => result pd
-                                     end :=
+Definition read s (p : parser s) :=
   fun t =>
     match next pd s t as s' return parser' s' ->
                                    match s' with
@@ -54,9 +38,9 @@ Definition read s (p : parser s) : forall t,
                                    | None => result pd
                                    end
     with
-    | Some s' => fun p => p
+    | Some s' => fun p => Parser _ p
     | None => caseD
-    end (caseR s p t).
+    end match p with Parser p => caseR s p t end.
 
 Coercion read : parser >-> Funclass.
 
@@ -66,8 +50,7 @@ CoFixpoint reader' s : partial_result pd s -> parser' s :=
   | None   => fun res => PDone (get_result pd res)
   end.
 
-Definition reader : parser (_initial_state pd) :=
-  reader' _ (initial_partial_result pd).
+Definition reader := Parser _ (reader' _ (initial_partial_result pd)).
 
 End Parser.
 
@@ -86,7 +69,7 @@ Notation "! n" := (Const n) (at level 0).
 
 Definition exp_result := nat.
 
-Notation exp_next :=
+Definition exp_next :=
   (fun (s : nat) (t : exp_token) =>
      match t with
      | Plus | Minus | Times => Some (S s)
@@ -123,7 +106,7 @@ Definition exp_build_result s t : exp_partial_result (Some s) -> exp_partial_res
                end
   end.
 
-Notation exp_parser_data := ({|
+Definition exp_parser_data := {|
   state := exp_state;
   initial_state := 0;
   token := exp_token;
@@ -133,6 +116,8 @@ Notation exp_parser_data := ({|
   initial_partial_result := fun t => t;
   get_result := exp_get_result;
   build_result := exp_build_result
-|}).
+|}.
 
-Definition my_exp : nat := reader exp_parser_data !+ !- !1 !2 !+ !4 !4.
+Definition reader_exp := Eval compute in reader exp_parser_data.
+
+Definition my_exp : nat := reader_exp !+ !- !1 !2 !+ !4 !4.
