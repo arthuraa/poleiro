@@ -24,32 +24,47 @@ Definition reader := Parser _ (reader' _ (initial_result pd)) (initial_result pd
 
 End Parser.
 
-Definition exp_state := nat.
+Module ListParser.
 
-Inductive exp_token :=
+Definition parser_data (X : Type) := {|
+  state := unit;
+  token := X;
+  result := fun _ => list X -> list X;
+  initial_state := tt;
+  next := fun _ _ => tt;
+  initial_result := fun t => t;
+  build_result := fun _ x f l => f (cons x l)
+|}.
+
+Definition my_list : list nat := get_result _ _ (reader (parser_data nat) 1 2 3 4 5 6 7 8 9 10 11) nil.
+
+End ListParser.
+
+Module ExpParser.
+
+Module Internal.
+
+Definition state := nat.
+
+Inductive token :=
 | Plus
 | Minus
 | Times
 | Const (n : nat).
 
-Notation "!+" := (Plus) (at level 0).
-Notation "!-" := (Minus) (at level 0).
-Notation "!*" := (Times) (at level 0).
-Notation "! n" := (Const n) (at level 0).
-
-Fixpoint exp_result' (n : nat) : Type :=
+Fixpoint result' (n : nat) : Type :=
   match n with
   | 0 => nat
-  | S n => nat -> exp_result' n
+  | S n => nat -> result' n
   end.
 
-Definition exp_result (n : exp_state) : Type :=
+Definition result (n : state) : Type :=
   match n with
   | 0 => unit
-  | S n => exp_result' n
+  | S n => result' n
   end.
 
-Definition exp_next (n : exp_state) (t : exp_token) : exp_state :=
+Definition next (n : state) (t : token) : state :=
   match n with
   | S (S n') => match t with
                 | Plus | Minus | Times => S n
@@ -58,7 +73,7 @@ Definition exp_next (n : exp_state) (t : exp_token) : exp_state :=
   | _ => 0
   end.
 
-Definition exp_build_result n t : exp_result n -> exp_result (exp_next n t) :=
+Definition build_result n t : result n -> result (next n t) :=
   match n with
   | S (S n') =>
     match t with
@@ -70,14 +85,23 @@ Definition exp_build_result n t : exp_result n -> exp_result (exp_next n t) :=
   | _ => fun _ => tt
   end.
 
-Definition exp_parser_data := {|
-  state := exp_state;
+End Internal.
+
+Definition parser_data := {|
+  state := Internal.state;
   initial_state := 2;
-  token := exp_token;
-  result := exp_result;
-  next := exp_next;
+  token := Internal.token;
+  result := Internal.result;
+  next := Internal.next;
   initial_result := fun t => t;
-  build_result := exp_build_result
+  build_result := Internal.build_result
 |}.
 
-Definition my_exp : nat := get_result _ _ (reader exp_parser_data !+ !- !1 !2 !+ !4 !4).
+Notation "!+" := (Internal.Plus) (at level 0).
+Notation "!-" := (Internal.Minus) (at level 0).
+Notation "!*" := (Internal.Times) (at level 0).
+Notation "! n" := (Internal.Const n) (at level 0).
+
+Definition my_exp : nat := get_result _ _ (reader parser_data !+ !- !1 !2 !+ !4 !4).
+
+End ExpParser.
