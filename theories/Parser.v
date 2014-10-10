@@ -100,8 +100,9 @@ Definition parser_data := {|
 Notation "!+" := (Internal.Plus) (at level 0).
 Notation "!-" := (Internal.Minus) (at level 0).
 Notation "!*" := (Internal.Times) (at level 0).
-Notation "! n" := (Internal.Const n) (at level 0).
 
-Definition my_exp : nat := get_result _ _ (reader parser_data !+ !- !1 !2 !+ !4 !4).
+Coercion Internal.Const : nat >-> Internal.token.
+
+Definition my_exp : nat := get_result _ _ (reader parser_data !+ !- 1 2 !+ 4 4).
 
 End ExpParser.
