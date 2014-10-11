@@ -48,18 +48,27 @@ Definition my_list : list nat := [List.p _ 1 2 3 4 5 6 7 8 9 10 11].
 
 Module Exp.
 
-Inductive op :=
-| Plus
-| Minus
-| Times
+Inductive binop := Plus | Minus | Mult.
+
+Definition ap_binop (b : binop) :=
+  match b with
+  | Plus => plus
+  | Minus => minus
+  | Mult => mult
+  end.
+
+Inductive inst :=
+| Binop (b : binop)
 | Const (n : nat).
 
 Module Exports.
 
-Notation "!+" := (Plus) (at level 0).
-Notation "!-" := (Minus) (at level 0).
-Notation "!*" := (Times) (at level 0).
-Coercion Const : nat >-> op.
+Notation "''+'" := (Plus) (at level 0).
+Notation "''-'" := (Minus) (at level 0).
+Notation "''*'" := (Mult) (at level 0).
+
+Coercion Binop : binop >-> inst.
+Coercion Const : nat >-> inst.
 
 End Exports.
 
@@ -71,7 +80,7 @@ Inductive state :=
 
 Definition token (s : state) : Type :=
   match s with
-  | Ok (S _) => op
+  | Ok (S _) => inst
   | _ => Empty_set
   end.
 
@@ -91,7 +100,7 @@ Definition next (s : state) : token s -> state :=
   match s with
   | Ok (S n') => fun t =>
                    match t with
-                   | Plus | Minus | Times => Ok (S (S n'))
+                   | Binop _ => Ok (S (S n'))
                    | Const _ => Ok n'
                    end
   | _ => fun _ => Error
@@ -102,9 +111,7 @@ Definition build_result s : forall t, result s -> result (next s t) :=
   | Ok (S n') =>
     fun t =>
       match t with
-      | Plus => fun res n1 n2 => res (n1 + n2)
-      | Minus => fun res n1 n2 => res (n1 - n2)
-      | Times => fun res n1 n2 => res (n1 * n2)
+      | Binop b => fun res n1 n2 => res (ap_binop b n1 n2)
       | Const n => fun res => res n
       end
   | _ => fun t _ => t
@@ -132,7 +139,7 @@ Inductive state :=
 Definition token (s : state) : Type :=
   match s with
   | Empty | One => nat
-  | More _ => op
+  | More _ => inst
   end.
 
 Fixpoint result' (n : nat) : Type :=
@@ -154,12 +161,12 @@ Definition next s : token s -> state :=
   | One => fun _ => More 0
   | More 0 => fun t =>
                 match t with
-                | Plus | Minus | Times => One
+                | Binop _ => One
                 | Const _ => More 1
                 end
   | More (S n) => fun t =>
                     match t with
-                    | Plus | Minus | Times => More n
+                    | Binop _ => More n
                     | Const _ => More (S (S n))
                     end
   end.
@@ -172,9 +179,7 @@ Definition build_result s : forall t, result s -> result (next s t) :=
                 match res with
                 | (n1, n2) =>
                   match t with
-                  | Plus => n1 + n2
-                  | Minus => n1 - n2
-                  | Times => n1 * n2
+                  | Binop b => ap_binop b n1 n2
                   | Const n => (n1, n2, n)
                   end
                 end
@@ -182,9 +187,7 @@ Definition build_result s : forall t, result s -> result (next s t) :=
                     match res with
                     | (res, n1, n2) =>
                       match t with
-                      | Plus => (res, n1 + n2)
-                      | Minus => (res, n1 - n2)
-                      | Times => (res, n1 * n2)
+                      | Binop b => (res, ap_binop b n1 n2)
                       | Const n => (res, n1, n2, n)
                       end
                     end
@@ -206,5 +209,5 @@ End Exp.
 
 Export Exp.Exports.
 
-Definition my_exp : nat := [Exp.pre !+ !- 1 2 !+ 4 4].
-Definition my_exp' : nat := [Exp.post 4 4 !+ 2 1 !- !+].
+Definition my_exp : nat := [Exp.pre '+ '- 1 2 '+ 4 4].
+Definition my_exp' : nat := [Exp.post 4 4 '+ 2 1 '- '+].
