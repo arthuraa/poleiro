@@ -1,3 +1,5 @@
+Require Import Coq.Lists.List.
+
 Inductive parser_data := ParserData {
   state : Type;
   token : state -> Type;
@@ -33,16 +35,16 @@ Module List.
 Definition p (X : Type) := {|
   state := unit;
   token := fun _ => X;
-  result := fun _ => list X -> list X;
+  result := fun _ => list X;
   initial_state := tt;
   next := fun _ _ => tt;
-  initial_result := fun t => t;
-  build_result := fun _ x f l => f (cons x l)
+  initial_result := nil;
+  build_result := fun _ x l => app l (cons x nil)
 |}.
 
 End List.
 
-Definition my_list : list nat := [List.p _ 1 2 3 4 5 6 7 8 9 10 11] nil.
+Definition my_list : list nat := [List.p _ 1 2 3 4 5 6 7 8 9 10 11].
 
 Module Exp.
 
