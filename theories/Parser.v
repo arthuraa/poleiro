@@ -2,32 +2,6 @@
 Require Import Coq.Lists.List.
 (* end hide *)
 
-(** Coq allows us to define infinite data structures using coinductive
-types. The typical example of a coinductive datatype are streams,
-which represent potentially infinite lists: *)
-
-CoInductive stream T : Type :=
-| Nil
-| Cons (h : T) (t : stream T).
-
-(** The keyword [CoInductive] tells Coq that, contrary to regular
-inductive lists, our streams are allowed to be infinite. Thus, we can
-use streams to model a sequence of elements that doesn't have an _a
-priori_ bound, such as packets arriving from a TCP channel.
-
-(Or course, because they can be infinite, Coq needs to treat
-coinductive terms slightly differently from inductive ones, but this
-difference won't be too important for the purposes of this post.)
-
-As it turns out, we can use coinductive data not only to define
-processes that produce arbitrary amounts of data, but also the _dual_
-notion: processes that _consume_ arbitrary amounts of data. Parsers
-can be seen as an instance of this model: we feed tokens to a parser,
-which will progressively build a result. To illustrate the power of
-coinductive data, we will build a flexible, lightweight parser
-infrastructure, which we will use to extend Coq's syntax in ways that
-the built-in notation mechanism is not capable of. *)
-
 Section Parser.
 
 (** Our parser will be parameterized by a few types and functions that
@@ -76,24 +50,22 @@ Definition read_three_tokens t1 t2 t3 :=
   ).
 
 (** Needless to say, this is not very convenient for extending Coq's
-syntax. We can make this better by wrapping [parser_data] in a
-coinductive datatype. *)
+syntax. We can make this better by wrapping [parser_data] in another
+type. *)
 
-CoInductive parser (s : state pd) : Type := Parser {
-  read_token :> forall t, parser (next pd s t);
+Record parser_state (s : state pd) : Type := ParserState {
   get_result : result pd s
 }.
 
-(** We define [parser] as a coinductive record with two fields. *)
+Definition read_token s (p : parser_state s) t :=
+  ParserState _ (update_result pd s t (get_result s p)).
 
-CoFixpoint reader' s (r : result pd s) : parser s :=
-  Parser _ (fun t => reader' _ (update_result pd s t r)) r.
-
-Definition reader := reader' _ (initial_result pd).
+Definition reader := ParserState _ (initial_result pd).
 
 End Parser.
 
-Coercion reader : parser_data >-> parser.
+Coercion reader : parser_data >-> parser_state.
+Coercion read_token : parser_state >-> Funclass.
 
 Notation "[ x ]" := (get_result _ _ x) (at level 0).
 
