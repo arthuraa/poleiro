@@ -1,26 +1,93 @@
+(* begin hide *)
 Require Import Coq.Lists.List.
+(* end hide *)
 
-Inductive parser_data := ParserData {
-  state : Type;
-  token : state -> Type;
-  result : state -> Type;
-  initial_state : state;
-  next : forall s, token s -> state;
-  initial_result : result initial_state;
-  build_result : forall s t, result s -> result (next s t)
-}.
+(** Coq allows us to define infinite data structures using coinductive
+types. The typical example of a coinductive datatype are streams,
+which represent potentially infinite lists: *)
+
+CoInductive stream T : Type :=
+| Nil
+| Cons (h : T) (t : stream T).
+
+(** The keyword [CoInductive] tells Coq that, contrary to regular
+inductive lists, our streams are allowed to be infinite. Thus, we can
+use streams to model a sequence of elements that doesn't have an _a
+priori_ bound, such as packets arriving from a TCP channel.
+
+(Or course, because they can be infinite, Coq needs to treat
+coinductive terms slightly differently from inductive ones, but this
+difference won't be too important for the purposes of this post.)
+
+As it turns out, we can use coinductive data not only to define
+processes that produce arbitrary amounts of data, but also the _dual_
+notion: processes that _consume_ arbitrary amounts of data. Parsers
+can be seen as an instance of this model: we feed tokens to a parser,
+which will progressively build a result. To illustrate the power of
+coinductive data, we will build a flexible, lightweight parser
+infrastructure, which we will use to extend Coq's syntax in ways that
+the built-in notation mechanism is not capable of. *)
 
 Section Parser.
 
+(** Our parser will be parameterized by a few types and functions that
+determine how it reads data, given in the following record: *)
+
+Record parser_data := ParserData {
+  state : Type;
+  initial_state : state;
+  token : state -> Type;
+  next : forall s, token s -> state;
+  result : state -> Type;
+  initial_result : result initial_state;
+  update_result : forall s t, result s -> result (next s t)
+}.
+
+(** Let's see what each field in this record means.
+
+    - [state] represents the current parser state. We can use it for
+      signaling that our parser has finished and produced a result, or
+      that it encountered an error, or even that it is currently
+      parsing some specific construct. The parser starts at state
+      [initial_state].
+
+    - [token] is the type of parsing tokens that the parser will
+      read. Notice that it is allowed to depend on the current state,
+      so we can use types to constrain our parser's behavior. Once a
+      parser at state [s] reads some token [t], it will enter a new
+      state [s'] given by the [next] function.
+
+    - [result] is the type of values returned by the parser. It also
+      tells the type of the partial result that our parser has read so
+      far. It is initially set to [initial_result], and it is
+      incrementally updated with each new token read, using
+      [update_result].
+
+Given such data, we can simulate a parsing process ourselves by doing
+successive calls to [update_result]. *)
+
 Variable pd : parser_data.
 
+Definition read_three_tokens t1 t2 t3 :=
+  update_result pd _ t3 (
+    update_result pd _ t2 (
+      update_result pd _ t1 (initial_result pd)
+    )
+  ).
+
+(** Needless to say, this is not very convenient for extending Coq's
+syntax. We can make this better by wrapping [parser_data] in a
+coinductive datatype. *)
+
 CoInductive parser (s : state pd) : Type := Parser {
-  read :> forall t, parser (next pd s t);
+  read_token :> forall t, parser (next pd s t);
   get_result : result pd s
 }.
 
+(** We define [parser] as a coinductive record with two fields. *)
+
 CoFixpoint reader' s (r : result pd s) : parser s :=
-  Parser _ (fun t => reader' _ (build_result pd s t r)) r.
+  Parser _ (fun t => reader' _ (update_result pd s t r)) r.
 
 Definition reader := reader' _ (initial_result pd).
 
@@ -39,7 +106,7 @@ Definition p (X : Type) := {|
   initial_state := tt;
   next := fun _ _ => tt;
   initial_result := nil;
-  build_result := fun _ x l => app l (cons x nil)
+  update_result := fun _ x l => app l (cons x nil)
 |}.
 
 End List.
@@ -106,7 +173,7 @@ Definition next (s : state) : token s -> state :=
   | _ => fun _ => Error
   end.
 
-Definition build_result s : forall t, result s -> result (next s t) :=
+Definition update_result s : forall t, result s -> result (next s t) :=
   match s with
   | Ok (S n') =>
     fun t =>
@@ -126,7 +193,7 @@ Definition pre := {|
   result := Pre.result;
   next := Pre.next;
   initial_result := fun t => t;
-  build_result := Pre.build_result
+  update_result := Pre.update_result
 |}.
 
 Module Post.
@@ -171,7 +238,7 @@ Definition next s : token s -> state :=
                     end
   end.
 
-Definition build_result s : forall t, result s -> result (next s t) :=
+Definition update_result s : forall t, result s -> result (next s t) :=
   match s with
   | Empty => fun t _ => t
   | One => fun t r => (r, t)
@@ -202,7 +269,7 @@ Definition post := {|
   initial_state := Post.Empty;
   next := Post.next;
   initial_result := tt;
-  build_result := Post.build_result
+  update_result := Post.update_result
 |}.
 
 End Exp.
