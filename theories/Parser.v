@@ -1,39 +1,33 @@
 (* begin hide *)
 Require Import Coq.Lists.List.
 (* end hide *)
+(** Coq's built-in extensible parser, although quite convenient in
+many cases, does have some limitations. On one hand, some syntax
+extensions that one might like to write cannot be expressed in
+it. Furthermore, the extensions are not first-class, having to be
+defined outside of the core language. We will see how to implement
+some interesting syntax extensions in Coq using just coercions and
+regular Coq functions. Besides being first-class, we will see that the
+mechanism can be used for defining extensions that cannot be expressed
+with Coq's extensible parser alone.
 
-(** Our parser will be parameterized by a few types and functions that
-determine how it reads data, given in the following record: *)
+We want to describe each syntax extension with a few Coq types and
+functions that determine how it should be parsed. Let's start with a
+simple version of what this could look like: *)
+
+Module Simple.
 
 Record parser := Parser {
-  state : Type;
-  initial_state : state;
-  token : state -> Type;
-  next : forall s, token s -> state;
-  result : state -> Type;
-  initial_result : result initial_state;
-  read_token : forall s, result s -> forall t, result (next s t)
+  token : Type;
+  result : Type;
+  initial_result : result;
+  read_token : result -> token -> result
 }.
 
-(** Let's see what each field in this record means.
-
-    - [state] represents the current parser state. We can use it for
-      signaling that our parser has finished and produced a result, or
-      that it encountered an error, or even that it is currently
-      parsing some specific construct. The parser starts at state
-      [initial_state].
-
-    - [token] is the type of parsing tokens that the parser will
-      read. Notice that it is allowed to depend on the current state,
-      so we can use types to constrain our parser's behavior. Once a
-      parser at state [s] reads some token [t], it will enter a new
-      state [s'] given by the [next] function.
-
-    - [result] is the type of values returned by the parser. It also
-      tells the type of the partial result that our parser has read so
-      far. It is initially set to [initial_result], and it is
-      incrementally updated with each new token read, using
-      [read_token].
+(** Here, our parser works by reading tokens (of type [token]), one at
+a time. It analyzes those tokens to produce a final result (of type
+[result]), that it builds progressively with each new token read
+(using function [read_token]).
 
 Given such data, we can simulate a parsing process ourselves by doing
 successive calls to [read_token]. *)
@@ -43,14 +37,14 @@ Section WithParser.
 Variable p : parser.
 
 Definition read_three_tokens t1 t2 t3 :=
-  read_token p _ (
-    read_token p _ (
-      read_token p _ (initial_result p) t1
+  read_token p (
+    read_token p (
+      read_token p (initial_result p) t1
     ) t2
   ) t3.
 
 (** Needless to say, this is not very convenient as a way of extending
-Coq's syntax. We can make it better by declaring [read_token] as a
+Coq's syntax. To make it better, we can declare [read_token] as a
 coercion from [result] to [Funclass]. Then, we can read a stream of
 tokens simply by applying [initial_result p] to each token
 successively: *)
@@ -74,12 +68,12 @@ Proof. reflexivity. Qed.
 type, ensuring that the Coq type checker will not fail to perform some
 coercions by reducing [result] more than it should. *)
 
-Record parser_wrapper (s : state p) : Type := ParserWrapper {
-  get_result : result p s
+Record parser_wrapper : Type := ParserWrapper {
+  get_result : result p
 }.
 
-Definition read_token' s (w : parser_wrapper s) t :=
-  ParserWrapper _ (read_token p s (get_result s w) t).
+Definition read_token' (w : parser_wrapper) t :=
+  ParserWrapper (read_token p (get_result w) t).
 Coercion read_token' : parser_wrapper >-> Funclass.
 
 End WithParser.
@@ -88,9 +82,9 @@ End WithParser.
 make using our embedded parsers more similar to usual quotations, like
 in Template Haskell: *)
 
-Definition init_parser p := ParserWrapper _ _ (initial_result p).
+Definition init_parser p := ParserWrapper _ (initial_result p).
 Coercion init_parser : parser >-> parser_wrapper.
-Notation "[ x ]" := (get_result _ _ x) (at level 0).
+Notation "[ x ]" := (get_result _ x) (at level 0).
 
 (** Now, we can invoke a parser simply by writing [[name_of_parser
 <list of tokens>]]: *)
@@ -103,13 +97,10 @@ alternative syntax for Coq lists that doesn't need separators between
 the elements. *)
 
 Definition listp (X : Type) := {|
-  state := unit;
-  initial_state := tt;
-  token := fun _ => X;
-  next := fun _ _ => tt;
-  result := fun _ => list X;
+  token := X;
+  result := list X;
   initial_result := nil;
-  read_token := fun _ l x => app l (cons x nil)
+  read_token l x := app l (cons x nil)
 |}.
 
 (** The [listp] parser is parameterized by [X], the type of the
@@ -118,6 +109,43 @@ each token that we read is an element of [X], which will be
 progressively added at the end of our list. *)
 
 Definition list_exp : list nat := [listp nat 0 1 2 3 4 5 6 7 8 9 10].
+
+End Simple.
+
+(** While nice, [listp] is not especially interesting as a parser,
+since it always interprets the tokens it reads the same way. It also
+never produces a parse error. In contrast, parsers usually read tokens
+in a non-uniform way, treating them differently depending on what it
+has read so far. To take such dependencies into account, we introduce
+a new [state] field to our record: *)
+
+Record parser := Parser {
+  state : Type;
+  initial_state : state;
+  token : state -> Type;
+  next : forall s, token s -> state;
+  result : state -> Type;
+  initial_result : result initial_state;
+  read_token : forall s, result s -> forall t, result (next s t)
+}.
+
+Section WithParser.
+
+Variable p : parser.
+
+Record parser_wrapper (s : state p) : Type := ParserWrapper {
+  get_result : result p s
+}.
+
+Definition read_token' s (w : parser_wrapper s) t :=
+  ParserWrapper _ (read_token p s (get_result s w) t).
+Coercion read_token' : parser_wrapper >-> Funclass.
+
+End WithParser.
+
+Definition init_parser p := ParserWrapper _ _ (initial_result p).
+Coercion init_parser : parser >-> parser_wrapper.
+Notation "[ x ]" := (get_result _ _ x) (at level 0).
 
 (** For [listp], there is no need to use anything interesting for the
 [state] type. For more complicated parsers, however, [state] comes in
