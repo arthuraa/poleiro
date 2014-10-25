@@ -156,54 +156,46 @@ Definition ap_op (o : op) :=
 
 Module Pre.
 
-Inductive state :=
-| Ok (n : nat)
-| Error.
+Definition state := nat.
 
 Definition token (s : state) : Type :=
   match s with
-  | Ok (S _) => exp_token
+  | S _ => exp_token
   | _ => Empty_set
   end.
 
-Fixpoint result' (n : nat) : Type :=
+Fixpoint result (n : nat) : Type :=
   match n with
   | 0 => nat
-  | S n => nat -> result' n
-  end.
-
-Definition result (s : state) : Type :=
-  match s with
-  | Ok n => result' n
-  | Error => Empty_set
+  | S n => nat -> result n
   end.
 
 Definition next (s : state) : token s -> state :=
   match s with
-  | Ok (S n') => fun t =>
-                   match t with
-                   | Op _ => Ok (S (S n'))
-                   | Const _ => Ok n'
-                   end
-  | _ => fun _ => Error
+  | S n' => fun t =>
+              match t with
+              | Op _ => S (S n')
+              | Const _ => n'
+              end
+  | _ => fun _ => 0
   end.
 
 Definition read_token s : result s -> forall t, result (next s t) :=
   match s with
-  | Ok (S n') =>
+  | S n' =>
     fun res t =>
       match t with
       | Op o => fun n1 n2 => res (ap_op o n1 n2)
       | Const n => res n
       end
-  | _ => fun _ t => t
+  | _ => fun _ t => match t with end
   end.
 
 End Pre.
 
 Definition pre := {|
   state := Pre.state;
-  initial_state := Pre.Ok 1;
+  initial_state := 1;
   token := Pre.token;
   result := Pre.result;
   next := Pre.next;
