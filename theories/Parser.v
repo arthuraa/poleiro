@@ -117,37 +117,77 @@ since it always interprets the tokens it reads the same way. It also
 never produces a parse error. In contrast, parsers usually read tokens
 in a non-uniform way, treating them differently depending on what it
 has read so far. To take such dependencies into account, we introduce
-a new [state] field to our record: *)
+some new fields to our record: *)
+
+Module State.
+
+Record parser := Parser {
+  state : Type;
+  initial_state : state;
+  token : Type;
+  next : state -> token -> state;
+  result : Type;
+  initial_result : result;
+  read_token : state -> result -> token -> result
+}.
+
+End State.
+
+(** The [state] field represents the internal state of our parser at a
+given point. It is set initially set to [initial_state], and is
+updated using function [next]. Additionally, [read_token] now takes
+the current state as an argument.
+
+While more general, this version still has some problems. We require
+our parsers to carry around a complete result value that it can return
+after having read _any_ sequence of tokens. Usually, however, parsing
+can result in errors, and there is no meaningful value that can be
+returned by the parser until it finishes its job. To solve this
+problem, we introduce one last change to our definition: _dependent
+types_. *)
 
 Record parser := Parser {
   state : Type;
   initial_state : state;
   token : state -> Type;
   next : forall s, token s -> state;
-  result : state -> Type;
-  initial_result : result initial_state;
-  read_token : forall s, result s -> forall t, result (next s t)
+  partial_result : state -> Type;
+  initial_partial_result : partial_result initial_state;
+  read_token : forall s, partial_result s -> forall t, partial_result (next s t)
 }.
-
+(* begin hide *)
 Section WithParser.
 
 Variable p : parser.
 
 Record parser_wrapper (s : state p) : Type := ParserWrapper {
-  get_result : result p s
+  get_partial_result : partial_result p s
 }.
 
 Definition read_token' s (w : parser_wrapper s) t :=
-  ParserWrapper _ (read_token p s (get_result s w) t).
+  ParserWrapper _ (read_token p s (get_partial_result s w) t).
 Coercion read_token' : parser_wrapper >-> Funclass.
 
 End WithParser.
 
-Definition init_parser p := ParserWrapper _ _ (initial_result p).
+Definition init_parser p := ParserWrapper _ _ (initial_partial_result p).
 Coercion init_parser : parser >-> parser_wrapper.
-Notation "[ x ]" := (get_result _ _ x) (at level 0).
+Notation "[ x ]" := (get_partial_result _ _ x) (at level 0).
+(* end hide *)
+(** Now, the type of tokens expected by the parser, as well as its
+type of partial results, can depend on the current parsing state, and
+the parsing functions have been updated to take this dependency into
+account.
 
-(** For [listp], there is no need to use anything interesting for the
+With dependent types, the type of the value that is being built,
+[partial_result], can change during the parsing process, allowing us
+to distinguish a complete, successfully parsed result, from one that
+still needs more tokens, or even a message describing a parse
+error. By making [token] depend on the current state, we can constrain
+which tokens can be read at each parsing state, allowing us to expose
+parse errors as type errors.
+
+For [listp], there is no need to use anything interesting for the
 [state] type. For more complicated parsers, however, [state] comes in
 handy. To see how, we will define parsers for prefix and postfix
 arithmetic expressions.
@@ -212,10 +252,10 @@ Definition token (s : state) : Type :=
 [n] numbers, one for each expression that the parser still needs to
 read. *)
 
-Fixpoint result (n : nat) : Type :=
+Fixpoint partial_result (n : nat) : Type :=
   match n with
   | 0 => nat
-  | S n => nat -> result n
+  | S n => nat -> partial_result n
   end.
 
 (** We must define how the parser actually interprets the tokens it
@@ -242,7 +282,7 @@ operation with the continuation, which has the net effect of adding
 one argument to it. Here, [ap_op] is a function that maps each [op] to
 the corresponding Coq function. *)
 
-Definition read_token s : result s -> forall t, result (next s t) :=
+Definition read_token s : partial_result s -> forall t, partial_result (next s t) :=
   match s with
   | S n' =>
     fun res t =>
@@ -262,9 +302,9 @@ Definition pre := {|
   state := Pre.state;
   initial_state := 1;
   token := Pre.token;
-  result := Pre.result;
+  partial_result := Pre.partial_result;
   next := Pre.next;
-  initial_result := fun t => t;
+  initial_partial_result := fun t => t;
   read_token := Pre.read_token
 |}.
 
@@ -306,21 +346,21 @@ Definition token (s : state) : Type :=
   | _ => exp_token
   end.
 
-(** The [result] type is a length-indexed list of natural numbers with
-one small twist: we ensure that [result 1 = nat] definitionally , so
-that we can use postfix expressions as having type [nat] without the
-need for any projections. *)
+(** The [partial_result] type is a length-indexed list of natural
+numbers with one small twist: we ensure that [partial_result 1 = nat]
+definitionally, so that we can use postfix expressions as having type
+[nat] without the need for any projections. *)
 
-Fixpoint result' (n : nat) : Type :=
+Fixpoint partial_result' (n : nat) : Type :=
   match n with
   | 0 => nat
-  | S n => (result' n * nat)%type
+  | S n => (partial_result' n * nat)%type
   end.
 
-Definition result (s : state) : Type :=
+Definition partial_result (s : state) : Type :=
   match s with
   | 0 => unit
-  | S n => result' n
+  | S n => partial_result' n
   end.
 
 (** [next] and [read_token] are dual to the definitions of the
@@ -338,7 +378,7 @@ Definition next s : token s -> state :=
                  end
   end.
 
-Definition read_token s : result s -> forall t, result (next s t) :=
+Definition read_token s : partial_result s -> forall t, partial_result (next s t) :=
   match s with
   | 0 => fun _ t => t
   | 1 => fun res t => (res, t)
@@ -370,8 +410,8 @@ Definition post := {|
   initial_state := 0;
   token := Post.token;
   next := Post.next;
-  result := Post.result;
-  initial_result := tt;
+  partial_result := Post.partial_result;
+  initial_partial_result := tt;
   read_token := Post.read_token
 |}.
 
