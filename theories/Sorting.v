@@ -1,309 +1,52 @@
 (* begin hide *)
-Require Import NPeano.
-Require Import Coq.Arith.Arith.
-Require Import Coq.Lists.List.
-Require Import Coq.Sorting.Permutation.
-Import ListNotations.
-Require Import Psatz.
+Require Import Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool.
+Require Import Ssreflect.ssrnat Ssreflect.eqtype.
+
+Require Import MathComp.prime.
 
 Set Implicit Arguments.
-Open Scope bool_scope.
+Unset Strict Implicit.
+Unset Printint Implicit Defensive.
 (* end hide *)
 
-Lemma firstn_nil :
-  forall A n, firstn n [] = [] :> list A.
-Proof. now intros A [|?]. Qed.
+Local Notation log2 := (trunc_log 2).
 
-Lemma firstn_firstn :
-  forall A n m l,
-    firstn n (firstn m l) = firstn (min n m) l :> list A.
+Lemma log2_fact n : (n * log2 n)./2 <= log2 n`!.
 Proof.
-  intros A.
-  induction n as [|n IH]; intros [|m] [|a l]; simpl; trivial.
-  now rewrite IH.
-Qed.
-
-Lemma length_firstn :
-  forall A n (l : list A),
-    length (firstn n l) = min n (length l).
-Proof.
-  intros A.
-  induction n as [|n IH]; intros [|a l]; simpl; trivial.
-  now rewrite IH.
-Qed.
-
-Lemma firstn_app :
-  forall A n (l1 l2 : list A),
-    firstn n (l1 ++ l2) =
-    firstn n l1 ++ firstn (n - length l1) l2.
-Proof.
-  intros A.
-  induction n as [|n IH]; intros [|a1 l1] [|a2 l2]; simpl; trivial.
-  - now rewrite firstn_nil, app_nil_r, app_nil_r.
-  - now rewrite IH.
-Qed.
-
-Lemma skipn_app :
-  forall A n (l1 l2 : list A),
-    skipn n (l1 ++ l2) =
-    skipn n l1 ++ skipn (n - length l1) l2.
-Proof.
-  intros A.
-  induction n as [|n IH]; intros [|a1 l1] [|a2 l2]; simpl; trivial.
-Qed.
-
-Lemma skipn_all :
-  forall A n (l : list A),
-    length l <= n ->
-    skipn n l = [].
-Proof.
-  intros A.
-  induction n as [|n IH]; intros [|a l]; simpl; trivial; try omega.
-  intros H.
-  apply IH; omega.
-Qed.
-
-Definition insert_at {A} (l : list A) (n : nat) (a : A) :=
-  firstn n l ++ a :: skipn n l.
-
-Fixpoint decode_permutation (n s : nat) : list nat :=
-  match s with
-  | 0 => []
-  | S s' => insert_at (decode_permutation (n mod fact s') s') (n / fact s') s'
-  end.
-
-Lemma permutation_length n s : length (decode_permutation n s) = s.
-Proof.
-  generalize dependent n.
-  induction s as [|s IH]; intros n; simpl; trivial.
-  unfold insert_at.
-  rewrite <- (IH (n mod fact s)) at 8.
-  rewrite <- (firstn_skipn (n / fact s) (decode_permutation _ _)) at 3.
-  repeat rewrite app_length. simpl. omega.
-Qed.
-
-Lemma permutation_range (n s i : nat) :
-  n < fact s ->
-  s <= i ->
-  existsb (beq_nat i) (decode_permutation n s) = false.
-Proof.
-  generalize dependent n.
-  induction s as [|s IH]; simpl; intros n Hn Hi.
-  - assert (n = 0) by omega. now subst n.
-  - assert (existsb (beq_nat i) (decode_permutation (n mod fact s) s) = false).
-    { apply IH; try omega.
-      apply Nat.mod_upper_bound. apply fact_neq_0. }
-    unfold insert_at.
-    rewrite existsb_app. simpl.
-    rewrite <- (firstn_skipn (n / fact s) (decode_permutation (n mod fact s) s)) in H.
-    rewrite existsb_app in H.
-    rewrite Bool.orb_false_iff in H.
-    destruct H as [H1 H2].
-    rewrite H1, H2, Bool.orb_false_r. simpl.
-    rewrite beq_nat_false_iff. omega.
-Qed.
-
-Fixpoint find {A} (p : A -> bool) (l : list A) : nat :=
-  match l with
-  | [] => 0
-  | a :: l' => if p a then 0 else S (find p l')
-  end.
-
-Lemma find_app {A} (p : A -> bool) (l1 l2 : list A) :
-  find p (l1 ++ l2) =
-  if existsb p l1 then find p l1
-  else length l1 + find p l2.
-Proof.
-  induction l1 as [|a l1 IH]; simpl; trivial.
-  destruct (p a); simpl; trivial.
-  rewrite IH.
-  now destruct (existsb p l1).
-Qed.
-
-Fixpoint encode_permutation (p : list nat) (len : nat) : nat :=
-  match len with
-  | 0 => 0
-  | S len' =>
-    let pos := find (beq_nat len') p in
-    pos * fact len' +
-    encode_permutation (firstn pos p ++ skipn (pos + 1) p) len'
-  end.
-
-Lemma existsb_firstn_false A (f : A -> bool) (l : list A) (n : nat) :
-  existsb f l = false ->
-  existsb f (firstn n l) = false.
-Proof.
-  generalize dependent l.
-  induction n as [|n IH]; intros [|a l]; trivial.
-  simpl.
-  destruct (f a); try discriminate.
-  simpl. eauto.
-Qed.
-
-Hint Resolve Nat.mod_upper_bound.
-Hint Resolve fact_neq_0.
-
-Lemma encode_decode n s :
-  n < fact s ->
-  encode_permutation (decode_permutation n s) s = n.
-Proof.
-  generalize dependent n.
-  induction s as [|s IH]; simpl; intros n Hn; try omega.
-  assert (H : existsb (beq_nat s) (decode_permutation (n mod fact s) s) = false).
-  { apply permutation_range; try omega.
-    apply Nat.mod_upper_bound.
-    apply fact_neq_0. }
-  rewrite <- (firstn_skipn (n / fact s) _), existsb_app, Bool.orb_false_iff in H.
-  destruct H as [H _].
-  unfold insert_at.
-  rewrite find_app, H, length_firstn, permutation_length.
-  simpl. rewrite <- beq_nat_refl, plus_0_r.
-  assert (Hn' : n / fact s <= s).
-  { replace (fact s + s * fact s) with (fact s * S s) in Hn by ring.
-    apply Nat.div_lt_upper_bound in Hn; try apply fact_neq_0.
-    omega. }
-  rewrite Min.min_l; try omega.
-  rewrite firstn_app, firstn_firstn, Min.min_idempotent, length_firstn, permutation_length,
-          Min.min_l, minus_diag, app_nil_r; try omega.
-  rewrite skipn_app, length_firstn, permutation_length, Min.min_l, minus_plus; try omega.
-  simpl.
-  rewrite skipn_all, firstn_skipn, IH;
-  try rewrite length_firstn, permutation_length, Min.min_l; trivial; try omega; simpl; eauto.
-  rewrite mult_comm, <- div_mod; trivial.
-Qed.
-
-Definition apply_permutation (p l : list nat) : list nat :=
-  map (fun n => nth n l 0) p.
-
-Definition inv_p (p : list nat) : list nat :=
-  map (fun i => find (beq_nat i) p) (seq 0 (length p)).
-
-Lemma list_eq_ext :
-  forall A l1 l2,
-    length l1 = length l2 ->
-    (forall x def, x < length l1 -> nth x l1 def = nth x l2 def) ->
-    l1 = l2 :> list A.
-Proof.
-  intros A.
-  induction l1 as [|a1 l1 IH]; intros [|a2 l2]; simpl; try congruence.
-  intros Hlen Hnth.
-  rewrite (Hnth 0 a1); try omega. f_equal.
-  apply IH.
-  - congruence.
-  - intros x def Hx. apply (Hnth (S x)). omega.
-Qed.
-
-Lemma map_nth' :
-  forall A B d d' (f : A -> B) l x,
-    x < length l ->
-    nth x (map f l) d =
-    f (nth x l d').
-Proof.
-  intros A B d d' f.
-  induction l as [|a l IH]; simpl; intros [|x] Hx; try omega; trivial.
-  apply IH. omega.
-Qed.
-
-Lemma find_permutation :
-  forall s n x,
-    x < s ->
-    find (beq_nat x) (decode_permutation n s) < s.
-Proof.
-  induction s as [|s IH]; intros n x Hx; try omega.
-  simpl.
-  unfold insert_at.
-  assert (H : x = s \/ x < s) by omega. clear Hx.
-  destruct H as [Hx | Hx].
-  - subst x.
-    rewrite find_app, existsb_firstn_false, length_firstn, permutation_length;
-    try solve [apply permutation_range; eauto].
-    simpl. rewrite <- beq_nat_refl, plus_0_r. lia.
-  - rewrite find_app. simpl.
-    specialize (IH (n mod fact s) x Hx).
-    rewrite <- (firstn_skipn (n / fact s) (decode_permutation (n mod fact s) s)), find_app in IH.
-    destruct (existsb (beq_nat x) (firstn (n / fact s) (decode_permutation (n mod fact s) s))); try omega.
-    assert (E : beq_nat x s = false).
-    { rewrite beq_nat_false_iff. omega. }
-    rewrite E. clear E. omega.
-Qed.
-
-Lemma nth_find :
-  forall A (f : A -> bool) l def,
-    find f l < length l ->
-    f (nth (find f l) l def) = true.
-Proof.
-  intros A f l def H.
-  induction l as [|a l IH]; simpl in *.
-  - omega.
-  - destruct (f a) eqn:E; trivial.
-    apply IH.
-    omega.
-Qed.
-
-Lemma inv_p_correct :
-  forall s n,
-    n < fact s ->
-    apply_permutation (inv_p (decode_permutation n s))
-                      (decode_permutation n s) = seq 0 s.
-Proof.
-  intros s n H.
-  apply list_eq_ext.
-  - unfold apply_permutation, inv_p.
-    repeat rewrite map_length.
-    now rewrite permutation_length.
-  - intros x def Hx.
-    unfold apply_permutation, inv_p in *.
-    repeat rewrite map_length in Hx.
-    rewrite seq_length in Hx.
-    rewrite permutation_length in *.
-    repeat rewrite (map_nth' def def).
-    + rewrite seq_nth; trivial. simpl.
-      symmetry. apply beq_nat_true.
-      apply nth_find.
-      rewrite permutation_length.
-      now apply find_permutation.
-    + now rewrite seq_length.
-    + now rewrite map_length, seq_length.
-Qed.
-
-Lemma log2_fact_inv n :
-  n * log2 n + n * 2 <= log2 (fact n) * 2 + 2 ^ (log2 n) * 2 + 1.
-Proof.
-  induction n as [|n IH].
-  - compute. lia.
-  - assert (H : n = 0 \/ n = 1 \/ n = 2 \/ 4 <= S n) by lia.
-    destruct H as [H | [H | [H | H]]]; try (subst n; compute; lia).
-    assert (LB1 := Nat.log2_le_mono _ _ H).
-    change (log2 4) with 2 in LB1.
-    assert (LB2 : 0 < n) by lia.
-    assert (LB3 : 0 < S n) by lia.
-    clear H.
-    assert (LB4 := Nat.log2_mul_below _ _ LB3 (lt_O_fact n)).
-    rewrite mult_succ_l.
-    change (fact (S n)) with (S n * fact n).
-    destruct (Nat.log2_succ_or n) as [H | H].
-    + assert (Bn  := log2_spec _ LB2).
-      assert (BSn := log2_spec _ LB3).
-      assert (Hn : 2 ^ (log2 (S n)) = S n).
-      { apply Nat.log2_eq_succ_is_pow2 in H.
-        destruct H as [l H].
-        rewrite H at 2.
-        f_equal.
-        apply Nat.log2_unique; simpl; lia. }
-      rewrite H in *.
-      simpl in BSn.
-      lia.
-    + rewrite H. lia.
-Qed.
-
-Lemma log2_fact n :
-  n * log2 n / 2 <= log2 (fact n).
-Proof.
-  assert (LB : n = 0 \/ 0 < n) by lia.
-  destruct LB as [LB|LB]; try (subst n; reflexivity).
-  assert (H := log2_fact_inv n).
-  generalize (log2_spec _ LB).
-  rewrite (div_mod (n * log2 n) 2) in H; lia.
+suff: n * (log2 n).+2 <= (log2 n`! + 2 ^ (log2 n)).*2.+1.
+  move: (leq0n n); rewrite leq_eqVlt=> /orP [/eqP <- //|pos].
+  move/half_leq; rewrite -(addn1 _.*2) halfD odd_double add0n addn0 doubleK.
+  rewrite -addn2 mulnDr muln2 halfD odd_double andbF doubleK add0n.
+  rewrite (addnC (log2 _)) -leq_subLR -addnBA ?trunc_logP //.
+  exact/leq_trans/leq_addr.
+have [|] := boolP (3 <= n); last by case: n => [|[|[|[|]]]] //=.
+elim: n=> [|n IH] //=.
+rewrite leq_eqVlt=> /orP [/eqP <- //|lb]; move/(_ lb) in IH.
+have: log2 n.+1 = log2 n \/ log2 n.+1 = (log2 n).+1 /\ 2 ^ (log2 n.+1) = n.+1.
+  move: (@trunc_log_bounds 2 _ erefl (@leq_trans 3 1 n erefl lb))
+        (@trunc_log_bounds 2 _ erefl (@leq_trans 4 1 n.+1 erefl lb))
+        => /andP [e1 e2] /andP [e3 e4].
+  move: (leq_trans e3 e2); rewrite leq_exp2l leq_eqVlt //.
+  case/orP=> [/eqP e5|].
+    by right; split=> //; apply/eqP; rewrite eqn_leq e3 e5.
+  rewrite ltnS leq_eqVlt=> /orP [/eqP ?|e5]; left=> //.
+  rewrite -(@leq_exp2l 2) // in e5.
+  by move: (leq_trans e4 (leq_trans e5 e1)); rewrite ltnNge leqnSn.
+have lb1: 2 <= log2 n.+1 by rewrite trunc_log_max //.
+have lb2: log2 n.+1 + log2 n`! <= log2 (n.+1)`!.
+  by rewrite trunc_log_max // factS expnD leq_mul // trunc_logP // fact_gt0.
+case=> [e|[e1 e2]].
+  have lb3: (log2 n).+2 <= (log2 n).*2 by rewrite -addnn -addn2 leq_add2l -e.
+  rewrite e mulSn (leq_trans (leq_add lb3 IH)) // addnS -doubleD ltnS.
+  by rewrite leq_double addnA leq_add2r -e.
+rewrite e1 mulSn mulnS (addnC n) addnA (addnC _.+3) -addnA.
+rewrite (leq_trans (leq_add IH (leqnn _))) // -e1 e2 doubleD.
+rewrite -[(2 ^ _).*2]muln2 mulnC -expnS -e1 e2 addSn ltnS.
+rewrite -addnA (addnA _.+1) (addnC _.+1) 2!addnA -addnA doubleD leq_add //.
+  rewrite -(addn2 (log2 _)) addnA.
+  rewrite (leq_trans (leq_add (leqnn _) lb1)) // -addnA addnn -doubleD.
+  by rewrite addnC leq_double.
+by rewrite -addnn leq_add2l.
 Qed.
 
 Inductive sorting_algorithm (s : nat) : Type :=
