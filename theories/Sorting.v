@@ -63,23 +63,32 @@ Fixpoint comparisons n (t : trace n) : nat :=
   | Done _ => 0
   end.
 
-Fixpoint execute n (t : trace n) (xs : n.-tuple nat) : n.-tuple nat :=
+Section Correctness.
+
+Variables (T : eqType) (le : rel T).
+
+Fixpoint execute n (t : trace n) (xs : n.-tuple T) : n.-tuple T :=
   match t with
   | Done p => [tuple tnth xs (p i) | i < n]
   | Compare i j tl tr =>
-    if tnth xs i <= tnth xs j then execute tr xs
+    if le (tnth xs i) (tnth xs j) then execute tr xs
     else execute tl xs
   end.
 
-Definition trace_ok n (t : trace n) :=
-  forall xs, execute t xs = sort leq xs :> seq nat.
+End Correctness.
+
+Definition trace_ok (t : forall n, trace n) :=
+  forall (T : eqType) (le : rel T),
+    transitive le ->
+    forall n xs, execute le (t n) xs =
+                 sort le xs :> seq T.
 
 Import GroupScope.
 
-Lemma trace_ok_leq n (t : trace n) :
-  trace_ok t -> (n * log2 n)./2 <= comparisons t.
+Lemma trace_ok_leq n t : trace_ok t -> (n * log2 n)./2 <= comparisons (t n).
 Proof.
-move=> t_ok; suff lb: n`! <= 2 ^ comparisons t.
+move/(_ _ _ leq_trans n); move: {t} (t n) => t t_ok.
+suff lb: n`! <= 2 ^ comparisons t.
   rewrite (leq_trans (log2_fact n)) // -(@leq_exp2l 2) //.
   by rewrite (leq_trans (trunc_logP (leqnn 2) (fact_gt0 n))).
 pose fix ps t : {set 'S_n} :=
