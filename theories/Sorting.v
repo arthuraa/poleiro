@@ -9,9 +9,39 @@ Require Import MathComp.perm MathComp.path.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printint Implicit Defensive.
-(* end hide *)
 
 Section Sorting.
+(* end hide *)
+
+Inductive trace (n : nat) : Type :=
+| Compare (i j : 'I_n) (tl tr : trace n)
+| Done of 'S_n.
+
+Section Correctness.
+
+Variables (T : eqType) (le : rel T).
+
+Fixpoint execute n (t : trace n) (xs : n.-tuple T) : n.-tuple T :=
+  match t with
+  | Done p => [tuple tnth xs (p i) | i < n]
+  | Compare i j tl tr =>
+    if le (tnth xs i) (tnth xs j) then execute tr xs
+    else execute tl xs
+  end.
+
+End Correctness.
+
+Definition trace_ok (t : forall n, trace n) :=
+  forall (T : eqType) (le : rel T),
+    transitive le ->
+    forall n xs, execute le (t n) xs =
+                 sort le xs :> seq T.
+
+Fixpoint comparisons n (t : trace n) : nat :=
+  match t with
+  | Compare _ _ tl tr => (maxn (comparisons tl) (comparisons tr)).+1
+  | Done _ => 0
+  end.
 
 Local Notation log2 := (trunc_log 2).
 
@@ -53,36 +83,6 @@ rewrite -addnA (addnA _.+1) (addnC _.+1) 2!addnA -addnA doubleD leq_add //.
 by rewrite -addnn leq_add2l.
 Qed.
 
-Inductive trace (n : nat) : Type :=
-| Compare (i j : 'I_n) (tl tr : trace n)
-| Done of 'S_n.
-
-Fixpoint comparisons n (t : trace n) : nat :=
-  match t with
-  | Compare _ _ tl tr => (maxn (comparisons tl) (comparisons tr)).+1
-  | Done _ => 0
-  end.
-
-Section Correctness.
-
-Variables (T : eqType) (le : rel T).
-
-Fixpoint execute n (t : trace n) (xs : n.-tuple T) : n.-tuple T :=
-  match t with
-  | Done p => [tuple tnth xs (p i) | i < n]
-  | Compare i j tl tr =>
-    if le (tnth xs i) (tnth xs j) then execute tr xs
-    else execute tl xs
-  end.
-
-End Correctness.
-
-Definition trace_ok (t : forall n, trace n) :=
-  forall (T : eqType) (le : rel T),
-    transitive le ->
-    forall n xs, execute le (t n) xs =
-                 sort le xs :> seq T.
-
 Import GroupScope.
 
 Lemma trace_ok_leq n t : trace_ok t -> (n * log2 n)./2 <= comparisons (t n).
@@ -120,4 +120,6 @@ rewrite (_ : val i = tnth [tuple val i | i < n] i); last first.
 by rewrite -{}e 2!tnth_map !tnth_ord_tuple.
 Qed.
 
+(* begin hide *)
 End Sorting.
+(* end hide *)
