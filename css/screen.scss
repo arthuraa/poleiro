@@ -131,6 +131,12 @@ nav {
                              #751590, #0181eb);
         @include hover-link;
     }
+    ul {
+        padding-left: 20px;
+        li {
+            list-style: disc;
+        }
+    }
 }
 
 #main footer {
