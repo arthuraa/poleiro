@@ -14,29 +14,58 @@ Section Sorting.
 (* end hide *)
 
 (** In this post, we will formalize one of the most well-known results
-of algorithm analysis: no comparison sort can run in less than [O(n *
-log n)] steps on an array of size [n].
+of algorithm analysis: no comparison sort can run in asymptotically
+less than [n * log n] steps, where [n] is the size of its input.
 
 Before starting, I should point out that this is the first post in
-this blog to use the Ssreflect and the Mathematical Components #<a
+this blog to use the Ssreflect and the Mathematical Components
+(MathComp) #<a
 href="http://ssr.msr-inria.inria.fr">libraries</a>#. Ssreflect is an
 amazing Coq extension that brings several improvements, including a
 nicer set of base tactics. Both libraries cover a wide range of
 theories, including fairly sophisticated Mathematics - as a matter of
-fact, both libraries form the basis of the Coq formalization of the
-#<a
+fact, they are featured in the Coq formalization of the #<a
 href="http://en.wikipedia.org/wiki/Feit%E2%80%93Thompson_theorem">Feit-Thompson
-theorem</a>#, known for its extremely complex and detailed proof. The
-theory of permutations over finite types available in the Mathematical
-Components library will be particularly useful for our problem.
+theorem</a>#, known for its extremely complex and detailed proof.
+
+As we will see, having good library support can help a lot when doing
+mechanized proofs, even for such simple results as this one. Two
+things that come in handy here, in particular, are the theories of
+_permutations_ and _sets_ over finite types that are available in
+MathComp. Indeed, the MathComp definitions enable many useful,
+higher-level reasoning principles that don't come for free in Coq,
+such as extensional and decidable equality. Furthermore, many lemmas
+on the library require a fair amount of machinery to be developed on
+their own - for example, showing that there are exactly [n!]
+permutations over a set of [n] elements. Previous versions of this
+post (which you can still find on the repository) tried to avoid
+external libraries, but were much longer and more complicated,
+prompting me to bite the bullet and port everything to
+Ssreflect/MathComp.
+
+** Basics
+
+The informal proof of this result is fairly simple:
+
+  - If a comparison sort is correct, then it must be capable of
+    shuffling an input vector of size [n] according to _any_ of the
+    [n!] permutations of its elements.
+
+  - On the other hand, any such algorithm can recognize at most [2 ^
+    k] distinct permutations, where [k] is the maximum number of
+    comparisons performed. Hence, [n! <= 2 ^ k] or, equivalently,
+    [log2 n! <= k].
+
+  - To conclude, Stirling's approximation tells us that [n * log2 n =
+    O(log2 n!)], which yields our result.
 
 We'll begin our formalization by defining a convenient datatype for
-representing the execution of a sorting algorithm. For our purposes, a
-sorting algorithm can be seen as a binary tree: internal nodes denote
-a comparison between two elements, with the right and left branches
-telling how to proceed on each case. The leaves of the tree signal
-that the algorithm halted, producing a result. This results in the
-following type: *)
+representing the execution of a comparison sort. For our purposes, a
+comparison sort can be seen as a binary tree: internal nodes indicate
+when a comparison between two elements occurs, with the right and left
+branches telling how to proceed depending on its result. The leaves of
+the tree mark when the algorithm ends and yields back a result. Thus,
+we obtain the following type: *)
 
 Inductive sort_alg (n : nat) : Type :=
 | Compare (i j : 'I_n) (l r : sort_alg n)
@@ -66,32 +95,17 @@ array [xs] of length [n], the function compares the elements of [a],
 following the appropriate branches along the way, until finding out
 how to rearrange [a]'s elements.
 
-With [execute], we can now define what it means for a sorting
-algorithm to be correct: *)
+With [execute], we can define what it means for a sorting algorithm to
+be correct, by relating its results to the MathComp [sort] function:
+*)
 
 Definition sort_alg_ok n (a : sort_alg n) :=
   forall (T : eqType) (le : rel T),
   forall xs, execute le a xs = sort le xs :> seq T.
 
-(** With [sort_alg_ok] in hand, we are ready to formulate our main
-result. Informally, its proof works as follows:
-
-  - In the worst case, an array of size [n] has [n!] permutations.
-
-  - A sorting algorithm can distinguish at most [2 ^ k] permutations,
-    where [k] is the maximum number of comparisons performed.
-
-  - Since our algorithm must work on every possible permutation of a
-    given array, we know that [n! <= 2 ^ k]. By taking the logarithm
-    of both sides, we get [log2 n! <= k].
-
-  - Stirling's approximation tells us that the left-hand side of this
-    inequality grows like [n * log n], modulo a multiplicative
-    constant. This allows us to conclude.
-
-Using the Mathematical Components library, we can formalize almost all
-of the above steps. For instance, here's how we bound the number of
-permutations an algorithm can distinguish: *)
+(** Finally, to translate the above informal argument, we will need
+some more definitions. Let's first write a function for computing how
+many comparisons an algorithm performs in the worst case: *)
 
 Fixpoint comparisons n (a : sort_alg n) : nat :=
   match a with
@@ -99,24 +113,27 @@ Fixpoint comparisons n (a : sort_alg n) : nat :=
   | Done _ => 0
   end.
 
+(** And here's a function for computing the set of permutations that
+an algorithm can perform (notice the use of the set library of
+MathComp; here, [:|:] denotes set union): *)
+
 Fixpoint perms n (a : sort_alg n) : {set 'S_n} :=
   match a with
   | Compare _ _ l r => perms l :|: perms r
   | Done p => [set p]
   end.
 
-Lemma card_perms n (a : sort_alg n) : #|perms a| <= 2 ^ comparisons a.
-Proof.
-elim: a=> [i j l IHl r IHr|p] /=; last by rewrite cards1.
-rewrite (leq_trans (leq_of_leqif (leq_card_setU (perms l) (perms r)))) //.
-by rewrite expnS mul2n -addnn leq_add // ?(leq_trans IHl, leq_trans IHr) //
-   leq_exp2l // ?(leq_maxl, leq_maxr).
-Qed.
+(** (Strictly speaking, both [comparisons] and [perms] give upper
+bounds on the values they should compute, but this does not affect us
+in any crucial way.)
 
-(** A crucial part of the above argument, that was left implicit, was
-showing that a correct comparison sort must contain all possible
-permutations: *)
+** Show me the proofs
 
+To show that a correct algorithm must be able of performing arbitrary
+permutations, notice that, if [xs] is a sorted array with distinct
+elements, then permuting its elements is an _injective_
+operation. That is, different permutations produce different
+arrays. *)
 (* begin hide *)
 Section WithGroupScope.
 Import GroupScope.
@@ -145,13 +162,22 @@ Qed.
 End WithGroupScope.
 (* end hide *)
 
-(** Notice how we leveraged the finite sets of Mathematical Components
-to help us here.
+(** Bounding the number of permutations performed by an algorithm is
+simple, and amounts to invoking basic lemmas about arithmetic and
+sets. *)
 
-Unfortunately, we don't have a proof of Stirling's approximation we
-can use for the last step, which forces us to take a more direct
-route. We show the following lemma by induction ([trunc_log], as its
-name says, is the truncated logarithm): *)
+Lemma card_perms n (a : sort_alg n) : #|perms a| <= 2 ^ comparisons a.
+Proof.
+elim: a=> [i j l IHl r IHr|p] /=; last by rewrite cards1.
+rewrite (leq_trans (leq_of_leqif (leq_card_setU (perms l) (perms r)))) //.
+by rewrite expnS mul2n -addnn leq_add // ?(leq_trans IHl, leq_trans IHr) //
+   leq_exp2l // ?(leq_maxl, leq_maxr).
+Qed.
+
+(** Doing the last step is a bit trickier, as we don't have a proof of
+Stirling's approximation we can use. Instead, we take a more direct
+route, showing the following lemma by induction on [n] ([trunc_log],
+as its name implies, is the truncated logarithm): *)
 
 Local Notation log2 := (trunc_log 2).
 
@@ -167,8 +193,8 @@ suff: n * (log2 n).+2 <= (log2 n`! + 2 ^ (log2 n)).*2.+1.
   rewrite (addnC (log2 _)) -leq_subLR -addnBA ?trunc_logP //.
   exact/leq_trans/leq_addr.
   (* end hide *)
-(** We can then proceed with a reasonably straightforward inductive
-argument. *)
+(** We can then proceed with a straightforward (although not
+completlely trivial) inductive argument. *)
 elim: n=> [|n IH] //=.
 (* ... *)
 (* begin hide *)
@@ -201,10 +227,9 @@ by rewrite -addnn leq_add2l.
 (* end hide *)
 Qed.
 
-(* begin hide *)
-Import GroupScope.
-(* end hide *)
-(** We can now conclude with our main result: *)
+(** Our main result follows almost immediately from these three
+intermediate lemmas: *)
+
 Lemma sort_alg_ok_leq n (a : sort_alg n) :
   sort_alg_ok a -> (n * log2 n)./2 <= comparisons a.
 Proof.
@@ -214,7 +239,17 @@ move=> a_ok; suff lb: n`! <= 2 ^ comparisons a.
 rewrite (leq_trans _ (card_perms a)) // -{1}(card_ord n) -cardsT -card_perm.
 by rewrite -(cardsE (perm_on [set: 'I_n])) subset_leq_card // permsT //.
 Qed.
-
 (* begin hide *)
 End Sorting.
 (* end hide *)
+(** ** Summary
+
+We've seen how to formalize a result of algorithm analysis in an
+_abstract_ setting: although it is fair to say that our model of a
+comparison sort is detailed enough for our purposes, we haven't
+connected it yet to a more traditional computation model, something I
+plan to discuss on a future post.
+
+Aside from that, we've seen how a rich set of theories, such as the
+ones in MathComp, allow us to express higher-level concepts in our
+definitions and proofs, leading to much shorter formalizations. *)
