@@ -5,7 +5,7 @@ site: site.hs
 	ghc --make -fwarn-unused-imports site
 
 run: site
-	./site rebuild && ./site watch
+	./site watch
 
 deploy:
 	./deploy.sh
