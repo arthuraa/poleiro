@@ -130,3 +130,15 @@ Proof.
   rewrite H.
   apply andb_assoc.
 Qed.
+
+(** ** Update
+
+Ssreflect also uses bullets to structure scripts. As pointed out in a
+comment below, however, their behavior is slightly different there:
+bullets don't focus on the current subgoal, and they are not checked
+for consistency. To restore the default behavior, simply include the
+following command on your script: *)
+(* begin hide *)
+Require Import Ssreflect.ssreflect.
+(* end hide *)
+Set Bullet Behavior "Strict Subproofs".
