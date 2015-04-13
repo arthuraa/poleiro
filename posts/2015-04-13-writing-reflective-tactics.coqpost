@@ -1,0 +1,5 @@
+---
+title: Writing reflective tactics
+date: 2015-04-13
+coqfile: Reflection.v
+---
