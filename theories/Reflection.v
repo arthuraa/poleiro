@@ -7,11 +7,11 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 (* end hide *)
-(** One important aspect of Coq's logic is the special status it gives
-to _computation_: while some systems require one to apply explicit
-reasoning steps to show that two given terms are equal, Coq's logic
+(** One important aspect of Coq's logic is the special status given to
+_computation_: while some systems require one to apply explicit
+deductive steps to show that two given terms are equal, Coq's logic
 considers any two terms that _evaluate_ to the same result to be equal
-automatically, without the need for additional reasoning steps.
+automatically, without the need for additional reasoning.
 
 Without getting into too much detail, we can illustrate this idea with
 some simple examples. Russell and Whitehead's seminal _Principia
@@ -62,11 +62,11 @@ Fixpoint n_plus_zero n : n + 0 = n :=
 of much use when proving something. Or is it?
 
 In this post, I will show how computation in Coq can be used to write
-certified tactics for automating certain reasoning steps with a
-technique known as _proof by reflection_. Reflection is extensively
-used in Coq and in other proof assistants as well. It is at the core
-of powerful automation tactics in Coq such as [ring], and played an
-important role in the formalization of the #<a
+certified automation tactics with a technique known as _proof by
+reflection_. Reflection is extensively used in Coq and in other proof
+assistants as well; it is at the core of powerful automation tactics
+such as [ring], and played an important role in the formalization of
+the #<a
 href="http://en.wikipedia.org/wiki/Four_color_theorem">Four-color
 theorem</a>#. As a matter of fact, the name #<a
 href="http://ssr.msr-inria.inria.fr/">Ssreflect</a># stands for
@@ -92,15 +92,15 @@ Proof. by rewrite mulnDl (mulnC n) (mulnC m) addnC. Qed.
 
 (** This was not terribly complicated, but there's certainly room for
 improvement. In a paper proof, a mathematician would probably assume
-that the reader would be able to verify this result on their own,
-without needing any additional detail. But how exactly would the
-reader proceed?
+that the reader is capable of verifying this result on their own,
+without any additional detail. But how exactly would the reader
+proceed?
 
-In the case of the simple arithmetic expression above, we can apply
-the distributivity law as long as possible, until both expressions
-become a sum of monomials. Then, thanks to associativity and
-commutativity, we just have to reorder the factors and terms and check
-that both sides of the equation match.
+In the case of the simple arithmetic expression above, it suffices to
+apply the distributivity law as long as possible, until both
+expressions become a sum of monomials. Then, thanks to associativity
+and commutativity, we just have to reorder the factors and terms and
+check that both sides of the equation match.
 
 The idea of proof by reflection is to reduce a the validity of a
 logical statement to a _symbolic computation_, usually by proving a
@@ -285,8 +285,8 @@ that can be directly manipulated in computation. In our case, that
 object is a Gallina expression of type [nat], and the representation
 we are producing is a term of type [expr].
 
-Reification is ubiquitous when doing proof by reflection. The Coq
-standard library comes with a #<a
+Reification is ubiquitous in proofs by reflection. The Coq standard
+library comes with a #<a
 href="https://coq.inria.fr/distrib/current/refman/Reference-Manual012.html##sec480">plugin</a>#
 for reifying formulas, but it is not general enough to accommodate our
 use case. Therefore, we will program our own reification tactic in
