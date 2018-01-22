@@ -2,8 +2,7 @@
 
 My name is
 [Arthur Azevedo de Amorim](http://www.cis.upenn.edu/~aarthur). I'm a
-Computer Science Ph.D. student working with programming languages and
-verification at [UPenn](http://www.cis.upenn.edu).
+post-doctoral researcher at [CMU](https://www.cylab.cmu.edu/).
 
 This is a blog about the [Coq](http://coq.inria.fr) proof assistant
 and programming language. With Coq, it is possible to develop
