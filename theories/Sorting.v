@@ -8,7 +8,7 @@ Require Import MathComp.perm MathComp.path.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
-Unset Printint Implicit Defensive.
+Unset Printing Implicit Defensive.
 
 Section Sorting.
 (* end hide *)
