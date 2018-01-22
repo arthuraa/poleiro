@@ -16,3 +16,5 @@
 ** (Leonidas) Comments in the middle of proofs might make them hard to read. (Antal) It is actually good.
 ** Get nice output for code that doesn't typecheck.
 ** Fix paragraphs in MarkDown output.
+** Fix GitHub links for text posts.
+Right now, only posts with Coq code have GitHub links.
