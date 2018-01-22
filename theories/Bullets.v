@@ -139,6 +139,6 @@ bullets don't focus on the current subgoal, and they are not checked
 for consistency. To restore the default behavior, simply include the
 following command on your script: *)
 (* begin hide *)
-Require Import Ssreflect.ssreflect.
+From Coq Require Import ssreflect.
 (* end hide *)
 Set Bullet Behavior "Strict Subproofs".

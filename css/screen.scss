@@ -270,55 +270,55 @@ tr.infrulemiddle hr {
 
 .id { display: inline; }
 
-.id[type="constructor"] {
+.id[title="constructor"] {
     color: rgb(60%,0%,0%);
 }
 
-.id[type="var"] {
+.id[title="var"] {
     color: rgb(40%,0%,40%);
 }
 
-.id[type="variable"] {
+.id[title="variable"] {
     color: rgb(40%,0%,40%);
 }
 
-.id[type="definition"] {
+.id[title="definition"] {
     color: rgb(0%,40%,0%);
 }
 
-.id[type="abbreviation"] {
+.id[title="abbreviation"] {
     color: rgb(0%,40%,0%);
 }
 
-.id[type="lemma"] {
+.id[title="lemma"] {
     color: rgb(0%,40%,0%);
 }
 
-.id[type="instance"] {
+.id[title="instance"] {
     color: rgb(0%,40%,0%);
 }
 
-.id[type="projection"] {
+.id[title="projection"] {
     color: rgb(0%,40%,0%);
 }
 
-.id[type="method"] {
+.id[title="method"] {
     color: rgb(0%,40%,0%);
 }
 
-.id[type="inductive"] {
+.id[title="inductive"] {
     color: rgb(0%,0%,80%);
 }
 
-.id[type="record"] {
+.id[title="record"] {
     color: rgb(0%,0%,80%);
 }
 
-.id[type="class"] {
+.id[title="class"] {
     color: rgb(0%,0%,80%);
 }
 
-.id[type="keyword"] {
+.id[title="keyword"] {
  color : #cf1d1d;
 }
 

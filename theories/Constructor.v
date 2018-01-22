@@ -1,3 +1,8 @@
+(* begin hide *)
+Tactic Notation "constructor" tactic(t) :=
+  [> once (constructor; t) ..].
+(* end hide *)
+
 (** The [constructor] tactic is one of the most basic forms of
 automation available in Coq. What it does is simple: in order to prove
 a proposition, the tactic tries to apply each of its constructors in

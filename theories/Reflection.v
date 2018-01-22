@@ -1,7 +1,6 @@
 (* begin hide *)
-Require Import Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool.
-Require Import Ssreflect.ssrnat Ssreflect.eqtype Ssreflect.seq.
-Require Import MathComp.bigop MathComp.path.
+From mathcomp
+  Require Import ssreflect ssrfun ssrbool ssrnat eqtype seq bigop path.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -301,8 +300,8 @@ Ltac intern vars e :=
     match vars' with
     | [::] =>
       let vars'' := eval simpl in (rcons vars e) in
-      constr:(n, vars'')
-    | e :: ?vars'' => constr:(n, vars)
+      constr:((n, vars''))
+    | e :: ?vars'' => constr:((n, vars))
     | _ :: ?vars'' => loop (S n) vars''
     end in
   loop 0 vars.
@@ -326,7 +325,7 @@ Ltac reify_expr vars e :=
     | (?qe1, ?vars') =>
       let r2 := reify_expr vars' e2 in
       match r2 with
-      | (?qe2, ?vars'') => constr:(Add qe1 qe2, vars'')
+      | (?qe2, ?vars'') => constr:((Add qe1 qe2, vars''))
       end
     end
   | ?e1 * ?e2 =>
@@ -335,13 +334,13 @@ Ltac reify_expr vars e :=
     | (?qe1, ?vars') =>
       let r2 := reify_expr vars' e2 in
       match r2 with
-      | (?qe2, ?vars'') => constr:(Mul qe1 qe2, vars'')
+      | (?qe2, ?vars'') => constr:((Mul qe1 qe2, vars''))
       end
     end
   | _ =>
     let r := intern vars e in
     match r with
-    | (?n, ?vars') => constr:(Var n, vars')
+    | (?n, ?vars') => constr:((Var n, vars'))
     end
   end.
 

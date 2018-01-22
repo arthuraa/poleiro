@@ -10,4 +10,7 @@ run: site
 deploy:
 	./deploy.sh
 
-.PHONY: run deploy
+clean: site
+	./site clean
+
+.PHONY: run deploy clean

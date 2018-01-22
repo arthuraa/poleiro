@@ -268,6 +268,7 @@ Qed.
 Lemma readNatAuxWriteNatAux : readNatAuxWriteNatAuxStatement.
 Proof.
 
+  intros time.
   induction time as [|time' IHtime]; intros n acc H.
 
   (* The base case is where the inductive hypothesis is crucial, since it

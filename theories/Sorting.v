@@ -1,10 +1,7 @@
 (* begin hide *)
-Require Import Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool.
-Require Import Ssreflect.ssrnat Ssreflect.eqtype Ssreflect.seq.
-Require Import Ssreflect.fintype.
-
-Require Import MathComp.prime MathComp.tuple MathComp.finset MathComp.fingroup.
-Require Import MathComp.perm MathComp.path.
+From mathcomp
+  Require Import ssreflect ssrfun ssrbool ssrnat eqtype seq fintype prime tuple
+                 finset fingroup perm path.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

@@ -4,7 +4,7 @@ Require Import Coq.Init.Wf.
 Require Import Coq.Wellfounded.Lexicographic_Product.
 Require Import Coq.Relations.Relation_Operators.
 
-Require Import CGT.
+From Poleiro Require Import CGT.
 (* end hide *)
 (** In the #<a
 href="/posts/2013-09-08-an-introduction-to-combinatorial-game-theory.html">#previous
@@ -60,7 +60,7 @@ Next Obligation.
       repeat rewrite in_map_iff in H.
       destruct H as [(pos1'' & H1 & H2) | (pos2'' & H1 & H2)];
       simpl in *; inversion H1; subst; clear H1;
-      constructor (solve [eexists; eauto]).
+      constructor; solve [eexists; eauto].
     - intros H.
       inversion H as [? ? [p H'] ?|? ? [p H'] ?]; subst; clear H;
       exists p; rewrite in_app_iff; repeat rewrite in_map_iff;
@@ -84,12 +84,12 @@ Fail Fixpoint sum (g1 g2 : game) : game :=
         map_game game_as_cg g2 Right (fun g2' P => sum g1 g2')).
 (* Error: Cannot guess decreasing argument of fix. *)
 
-(** One solution is again to pair both arguments and use the [Fix]
-combinator with [cg_pair_order_wf]. Manipulating proof terms in the
-recursive calls can be made less awkward by using the [refine] tactic: *)
+(** One solution is again to pair both arguments and use the [Fix] combinator
+with [cg_pair_order_wf]. Manipulating proof terms in the recursive calls can be
+made less awkward by using the [simple refine] tactic: *)
 
 Definition sum (g1 g2 : game) : game.
-  refine (
+  simple refine (
     Fix cg_pair_order_wf (fun _ => game)
         (fun gs =>
            match gs with
@@ -101,7 +101,7 @@ Definition sum (g1 g2 : game) : game.
                   (map_game game_as_cg g1 Right sum_fst ++
                    map_game game_as_cg g2 Right sum_snd)
            end) (g1, g2));
-  clear - P; constructor; eauto.
+  clear - P; constructor; trivial.
 Defined.
 
 (** As with all definitions involving [Fix], we must now prove a lemma

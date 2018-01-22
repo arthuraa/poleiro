@@ -19,7 +19,7 @@ coqdoc :: Compiler (Item String)
 coqdoc = do
   coqFileName <- toFilePath <$> getUnderlying
   unsafeCompiler $
-    readProcess "coqc" [ "-I", "theories", coqFileName ] ""
+    readProcess "coqc" [ "-R", "theories", "Poleiro", coqFileName ] ""
   body <- unsafeCompiler $
           readProcess "coqdoc" [ "--no-index"
                                , "--stdout"
