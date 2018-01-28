@@ -37,7 +37,7 @@ Definition or_false_r (A : Prop) : A \/ False -> A :=
     href="https://en.wikipedia.org/wiki/Principle_of_explosion">principle of
     explosion</a>#, which asserts that from a contradiction, anything follows.
 
-    The idea of viewing proofs as programs in known as the #<a
+    The idea of viewing proofs as programs is known as the #<a
     href="https://en.wikipedia.org/wiki/Curry-Howard_correspondence">Curry-Howard
     correspondence</a>#.  It has been a fruitful source of inspiration for the
     design of many other logics and programming languages beyond Coq, other
@@ -211,7 +211,7 @@ Axiom proof_irrelevance : forall (P : Prop) (p q : P), p = q.
     type [T] are proof irrelevant _provided that_ [T] has decidable equality.
     Many useful properties can be expressed in this way; in particular, any
     boolean function [f : S -> bool] can be seen as a predicate [S -> Prop]
-    defined as [fun x : S => f x = bool].  Thus, if we restrict subset types to
+    defined as [fun x : S => f x = true].  Thus, if we restrict subset types to
     _computable_ predicates, we do not need to worry about the proofs that
     appear in its elements.
 
