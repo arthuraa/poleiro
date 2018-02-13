@@ -45,7 +45,7 @@ Example asciiEx : ascii := "a".
     convert [ascii]s to [nat]s: if the character is a digit, we return
     the corresponding number. Otherwise, the whole parsing should
     fail. As in other functional programming languages, we model this
-    by making our function return an [option] instead -- in this case,
+    by making our function return an [option] instead ─ in this case,
     [option nat]. *)
 
 Definition digitToNat (c : ascii) : option nat :=
@@ -65,7 +65,7 @@ Definition digitToNat (c : ascii) : option nat :=
 
 (** We can now use this function to read numbers. To make it more
     efficient, we can add an [acc] parameter to store the intermediate
-    results of the computation -- i.e., the number we've read so far. *)
+    results of the computation ─ i.e., the number we've read so far. *)
 
 Open Scope string_scope.
 

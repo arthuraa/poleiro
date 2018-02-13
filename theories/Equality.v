@@ -3,7 +3,7 @@ From Coq Require Import ssreflect ssrfun.
 (* end hide *)
 (** Coq views truth through the lens of provability.  The hypotheses it
     manipulates are not mere assertions of truth, but _formal proofs_ of the
-    corresponding statements -- data structures that can be inspected to build
+    corresponding statements ─ data structures that can be inspected to build
     other proofs.  It is not a coincidence that function types and logical
     implication use the same notation, [A -> B], because proofs of implication
     in Coq _are_ functions: they take proofs of the precondition as inputs and
@@ -63,7 +63,7 @@ End HideEquality.
 (* end hide *)
 
 (** This declaration says that the most basic way of showing [x = y] is when [x]
-    and [y] are the "same" term -- not in the strict sense of syntactic
+    and [y] are the "same" term ─ not in the strict sense of syntactic
     equality, but in the more lenient sense of equality "up to computation" used
     in Coq's theory.  For instance, we can use [eq_refl] to show that [1 + 1 =
     2], because Coq can simplify the left-hand side using the definition of [+]
@@ -72,7 +72,7 @@ End HideEquality.
     To prove interesting facts about equality, we generally use the [rewrite]
     tactic, which in turn is implemented by pattern matching.  Matching on
     proofs of equality is more complicated than for typical data types because
-    it is a _non-uniform_ indexed proposition -- that is, the value of its last
+    it is a _non-uniform_ indexed proposition ─ that is, the value of its last
     argument is not fixed for the whole declaration, but depends on the
     constructor used.  (This non-uniformity is what allows us to put two
     occurrences of [x] on the type of [eq_refl].)
@@ -114,7 +114,7 @@ Definition esym {T} {x y : T} (p : x = y) : y = x :=
 (** Notice the return clause in the first proof, which uses a function type.  We
     cannot use [w = z] alone, as the final type of the expression would be [y =
     z].  The other reasonable guess, [x = z], wouldn't work either, since we
-    would have nothing of that type to return in the branch -- [q] has type [y =
+    would have nothing of that type to return in the branch ─ [q] has type [y =
     z], and Coq does not automatically change it to [x = z] just because we know
     that [x] and [y] ought to be equal inside the branch.  The practice of
     returning a function is so common when matching on dependent types that it
@@ -124,7 +124,7 @@ Definition esym {T} {x y : T} (p : x = y) : y = x :=
 
     In addition to functions, pretty much any type expression can go in the
     return clause of a [match].  This flexibility allows us to derive many basic
-    reasoning principles -- for instance, the fact that constructors are
+    reasoning principles ─ for instance, the fact that constructors are
     disjoint and injective. *)
 
 Definition eq_Sn_m (n m : nat) (p : S n = m) :=
@@ -190,7 +190,7 @@ Definition first' {T} (s : {s : seq T | s <> [::]}) : T :=
     instance, we cannot show that two elements [exist x H1] and [exist x H2] are
     equal just by reflexivity; we must explicitly argue that the proofs [H1] and
     [H2] are equal.  Unfortunately, there are many cases in which this is not
-    possible -- for example, two proofs of a disjunction [A \/ B] need to use
+    possible ─ for example, two proofs of a disjunction [A \/ B] need to use
     the same constructor to be considered equal.
 
     The situation is not as bad as it might sound, because Coq was designed to
@@ -215,7 +215,7 @@ Axiom proof_irrelevance : forall (P : Prop) (p q : P), p = q.
     _computable_ predicates, we do not need to worry about the proofs that
     appear in its elements.
 
-    You might wonder why any assumptions are needed in this result -- after all,
+    You might wonder why any assumptions are needed in this result ─ after all,
     the definition of equality only had a single constructor; how could two
     proofs be different?  Let us begin by trying to show the result without
     relying on any extra assumptions. We can show that general proof irrelevance
@@ -274,7 +274,7 @@ Hypothesis eq_dec : forall x y, x = y \/ x <> y.
     produces a canonical proof of equality of the same type as output.
     Crucially, the output of the procedure does not depend on its input.  We
     then show that the normalization procedure has an inverse, allowing us to
-    conclude -- all proofs must be equal to the canonical one.
+    conclude ─ all proofs must be equal to the canonical one.
 
     Here is the normalization procedure. *)
 
