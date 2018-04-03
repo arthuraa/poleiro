@@ -72,9 +72,9 @@ href="http://ssr.msr-inria.inria.fr/">Ssreflect</a># stands for
 _small-scale reflection_, due to the library's pervasive use of
 reflection and computation.
 
-Let's see how reflection works by means of a basic (but interesting)
-example: a tactic for checking equalities between simple expressions
-involving natural numbers.
+Let's see how reflection works by means of a basic example: a tactic
+for checking equalities between simple expressions involving natural
+numbers.
 
 ** Arithmetic with reflection
 
