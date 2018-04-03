@@ -24,7 +24,7 @@ representations for the output format, which can make it slightly less
 convenient to specify. In #<a
 href="http://www.brics.dk/RS/98/12/BRICS-RS-98-12.pdf">Functional
 Unparsing</a>#, Olivier Danvy showed how to implement an analogue of
-[printf] using formatting combinators. More recently, Oleg Kieslyov
+[printf] using formatting combinators. More recently, Oleg Kiselyov
 used delimited control operators to implement his own type-safe
 version of [printf] in #<a
 href="http://okmij.org/ftp/Haskell/ShiftResetGenuine.hs">Haskell</a>#,
