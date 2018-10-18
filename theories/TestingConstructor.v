@@ -52,3 +52,20 @@ Goal True.
 (* Succeeds *)
 head_constructor (1 + 1).
 Abort.
+
+(** #<b>Update</b># Anton Trunov pointed out that we can emulate the behavior of
+    the first tactic with a fixpoint by adding a flag in the call to [eval]: *)
+
+Reset head_constructor.
+Ltac head_constructor t :=
+  match type of t with
+  | ?T =>
+    let r := eval cbn fix in ((fix loop (t' : T) {struct t'} := tt) t) in
+    match r with tt => idtac end
+  end.
+
+(** Now, only the outer fixpoint is reduced. *)
+
+Goal True.
+Fail head_constructor (1 + 1).
+Abort.
