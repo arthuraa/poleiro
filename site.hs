@@ -1,14 +1,15 @@
 --------------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
-import           Control.Applicative ((<$>))
-import           Control.Arrow       ((***))
-import           Data.Monoid         (mappend)
-import           Data.List           (stripPrefix, sortBy)
-import qualified Data.Map as M
+import           Control.Applicative  ((<$>))
+import           Control.Arrow        ((***))
+import           Data.Monoid          (mappend)
+import           Data.List            (stripPrefix, sortBy)
 import           Data.Ord
+import           Data.Maybe           (fromMaybe)
 import           Hakyll
+import           Hakyll.Core.Metadata (lookupString)
 import           System.Process
-import           System.FilePath     (takeBaseName, (</>))
+import           System.FilePath      (takeBaseName, (</>))
 
 compass :: Compiler (Item String)
 compass =
@@ -110,8 +111,7 @@ main = hakyll $ do
         compile coqdoc
 
     postsMetadata <- map fst . sortBy (comparing snd) .
-                     map (id ***
-                          M.findWithDefault "date" "") <$>
+                     map (id *** fromMaybe "" . lookupString "date") <$>
                      getAllMetadata "posts/*"
 
     let getNeighbors id = lookup id postsMetadata
