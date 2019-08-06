@@ -53,13 +53,15 @@ Fail Fixpoint subtypeb T S {struct T} :=
   | _, _ => false
   end.
 
-(**[[
+(**
+[[
 Recursive definition of subtypeb is ill-formed.
 ...
 Recursive call to subtypeb has principal argument equal
 to "T2" instead of one of the following variables: "T1" "S1".
-]]*)
-(** What happened? Recursive functions in Coq are always defined with respect to
+]]
+
+What happened? Recursive functions in Coq are always defined with respect to
 a _principal argument_.  In this case, the argument was marked as [T] using the
 [struct] keyword, but Coq can usually find the principal argument by itself when
 this declaration is omitted.  For the definition to be valid, all the recursive
