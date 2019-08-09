@@ -135,3 +135,47 @@ suffices /(_ true): forall b, subtypeb_gen b T S ->
 elim: T S=> [| |T1 IH1 S1 IH2] [| |T2 S2] [] //=;
 try case/andP=> /IH1 ? /IH2 ?; by constructor.
 Qed.
+
+(** *** Update (August 9, 2019)
+
+Robert Rand and Anton Trunov proposed an alternative approach based on mutual
+recursion, which I've included here for completeness.  Notice how the two
+recursive functions have different recursive arguments.  *)
+
+(* begin hide *)
+Module MutRec.
+(* end hide *)
+Definition body T S := fun subtypeb subtypeb' =>
+match T, S with
+| _, Top => true
+| Int, Int => true
+| T1 ⟶ S1, T2 ⟶ S2 => subtypeb' T2 T1 && subtypeb S1 S2
+| _, _ => false
+end.
+
+Fixpoint subtypeb T S {struct T} := body T S subtypeb subtypeb'
+with subtypeb' T S {struct S} := body T S subtypeb' subtypeb.
+
+Notation "T <:? S" := (subtypeb T S) (at level 20, no associativity).
+
+Lemma subtypeb'_subtypeb S T :
+(subtypeb' T S = subtypeb T S) * (subtypeb' S T = subtypeb S T).
+Proof.
+elim: S T=> [| |Ts IHt Ss IHs] [| | Tt St] //=.
+by rewrite !IHt !IHs.
+Qed.
+
+Lemma subtypebP T S : reflect (T <: S) (T <:? S).
+Proof.
+apply/(iffP idP); last first.
+- by elim: T S / => [[] //| |???? _ IH1 _ IH2] //=; rewrite subtypeb'_subtypeb IH1 IH2.
+suffices : (T <:? S -> T <: S) /\ (S <:? T -> S <: T) by case.
+elim: S T => [| |T1 IH1 S1 IH2] [| |T2 S2] //=; try by split=>//; constructor.
+rewrite !subtypeb'_subtypeb.
+split; case/andP.
+- by move=> /(proj2 (IH1 _)) subT12 /(proj1 (IH2 _)); constructor.
+by move=> /(proj1 (IH1 _)) subT21 /(proj2 (IH2 _)); constructor.
+Qed.
+(* begin hide *)
+End MutRec.
+(* end hide *)
