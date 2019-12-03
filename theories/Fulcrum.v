@@ -161,11 +161,13 @@ Qed.
 
 Implicit Types (best curr : int) (best_i curr_i : nat).
 
-Fixpoint loop rest best curr best_i curr_i : nat :=
+Fixpoint loop rest best best_i curr curr_i : nat :=
   if rest is x :: rest' then
-    let curr' := curr + x in
-    if best < curr' then loop rest' curr' curr' curr_i.+1 curr_i.+1
-    else loop rest' best curr' best_i curr_i.+1
+    let curr'   := curr + x  in
+    let curr_i' := curr_i.+1 in
+    let best'   := if best < curr' then curr'   else best   in
+    let best_i' := if best < curr' then curr_i' else best_i in
+    loop rest' best' best_i' curr' curr_i'
   else best_i.
 
 Definition fulcrum s := loop s 0 0 0 0.
@@ -181,8 +183,8 @@ Lemma is_fulcrum_rcons s best_i x :
   is_fulcrum s best_i ->
   (best_i <= size s)%N ->
   is_fulcrum (rcons s x)
-             (if sumz (take best_i s) < sumz s + x then (size s).+1
-              else best_i).
+    (if sumz (take best_i s) < sumz s + x then (size s).+1
+     else best_i).
 Proof.
 rewrite !is_fulcrumP=> best_iP bounds j.
 case: ltrP=> [/ltrW le|ge].
@@ -203,14 +205,14 @@ Lemma loopP best_i s rest :
   is_fulcrum s best_i ->
   (best_i <= size s)%N ->
   is_fulcrum (s ++ rest)
-             (loop rest (sumz (take best_i s)) (sumz s) best_i (size s)).
+    (loop rest (sumz (take best_i s)) best_i (sumz s) (size s)).
 Proof.
 elim: rest s best_i=> [|x rest IH] s1 best_i //=; first by rewrite cats0.
-move=> best_iP best_le_s; rewrite -cat1s catA cats1.
-have := is_fulcrum_rcons _ _ x best_iP best_le_s.
+move=> best_iP bounds; rewrite -cat1s catA cats1.
+have := is_fulcrum_rcons _ _ x best_iP bounds.
 rewrite -sumz1 -(size_rcons s1 x).
 case: ifP=> _ best_iP'; first by rewrite -{2}[rcons _ _]take_size; apply: IH.
-rewrite -(takel_cat [:: x] best_le_s) cats1; apply: IH=> //.
+rewrite -(takel_cat [:: x] bounds) cats1; apply: IH=> //.
 by rewrite size_rcons; apply: leq_trans (leqnSn (size _)).
 Qed.
 
