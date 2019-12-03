@@ -97,9 +97,9 @@ this function was showing that the set of elements in its output is the same as
 in its input, and that no element occurs twice.  Both properties are proved in
 Math Comp (look for [mem_undup] and [undup_uniq]).  Hillel wrote that imperative
 programs had an advantage for this problem because of its symmetry.  I am not
-sure what was meant by that, but both the Dafny and the Coq proof are comparable
-in terms of complexity. (To be fair, Dafny has better automation than Coq, but
-this is not related to being functional or imperative.)
+sure what was meant by that, but the Dafny and the Coq proofs are comparable in
+terms of complexity. (To be fair, Dafny has better automation than Coq, but this
+is not related to being functional or imperative.)
 
 
 ** Fulcrum
@@ -124,7 +124,7 @@ Definition fv s i := sumz (take i s) - sumz (drop i s).
 Definition is_fulcrum s i := forall j, fv s j <= fv s i.
 
 (** It is easy to find the fulcrum by computing [fv s i] for all indices [i];
-however, this requires quadratic time, and the problem asked for a linear
+however, this runs in quadratic time, and the problem asked for a linear
 solution.  To avoid this pitfall, note that optimizing [fv s i] is equivalent to
 optimizing [sumz (take i s)]. *)
 
@@ -141,14 +141,14 @@ have P j: (sumz (take j s) <= sumz (take i s)) = (fv s j <= fv s i).
 by rewrite /is_fulcrum; split=> H j; rewrite ?P // -P.
 Qed.
 
-(** This enables a simple, efficient solution by dynamic programming, computed
-in the following two functions. The main loop is tail-recursive, and takes the
-following parameters:
+(** This enables a simple, efficient solution by dynamic programming. The
+workhorse is the [loop] function , which computes the fulcrum of a sequence of
+the form [s ++ rest] assuming that we have already computed the fulcrum of [s].
+It takes the following parameters:
 
 - [rest]: The part of the sequence that we still have to traverse;
 
-- [best]: the optimal value of [sumz (take i s)], where [s] is the sequence of
-  elements we have traversed thus far;
+- [best]: the optimal value of [sumz (take i s)];
 
 - [best_i]: the index where the optimum [best] is attained; and
 
@@ -156,14 +156,13 @@ following parameters:
 
 - [curr_i]: the number of elements traversed thus far.
 
-The top-level function is defined by calling the main loop with suitable initial
-values. *)
+*)
 
-Implicit Types (best curr : int) (best_i curr_i : nat).
+Implicit Types (rest : seq int) (best curr : int) (best_i curr_i : nat).
 
 Fixpoint loop rest best best_i curr curr_i : nat :=
-  if rest is x :: rest' then
-    let curr'   := curr + x  in
+  if rest is n :: rest' then
+    let curr'   := curr + n  in
     let curr_i' := curr_i.+1 in
     let best'   := if best < curr' then curr'   else best   in
     let best_i' := if best < curr' then curr_i' else best_i in
@@ -179,24 +178,6 @@ result of appending [x] to the end of [s].) *)
 Lemma sumz1 s n : sumz (rcons s n) = sumz s + n.
 Proof. by rewrite /sumz -cats1 big_cat big_seq1. Qed.
 
-Lemma is_fulcrum_rcons s best_i n :
-  is_fulcrum s best_i ->
-  (best_i <= size s)%N ->
-  is_fulcrum (rcons s n)
-    (if sumz (take best_i s) < sumz (rcons s n) then size (rcons s n)
-     else best_i).
-Proof.
-rewrite !is_fulcrumP=> best_iP bounds j.
-case: ltrP=> [/ltrW le|ge].
-  rewrite take_size.
-  case: (ltnP j (size (rcons s n))) => [|?]; last by rewrite take_oversize.
-  rewrite size_rcons -{1}cats1 => j_s; rewrite takel_cat //.
-  exact: ler_trans le.
-case: (ltnP j (size (rcons s n))) => [|?].
-  by rewrite size_rcons -cats1 => j_s; rewrite !takel_cat.
-by rewrite take_oversize // -{2}cats1 takel_cat.
-Qed.
-
 (** This result implies that [is_fulcrum s best_i] is a loop invariant, from
 which the final result follows. *)
 
@@ -206,10 +187,20 @@ Lemma loopP best_i s rest :
   is_fulcrum (s ++ rest)
     (loop rest (sumz (take best_i s)) best_i (sumz s) (size s)).
 Proof.
-elim: rest s best_i=> [|n rest IH] s1 best_i //=; first by rewrite cats0.
-move=> best_iP bounds; rewrite -cat1s catA cats1.
-have := is_fulcrum_rcons _ _ n best_iP bounds.
-rewrite -sumz1 -(size_rcons s1 n).
+elim: rest s best_i=> [|n rest IH] s best_i //=; first by rewrite cats0.
+move=> best_iP bounds; rewrite -cat1s catA cats1 -sumz1 -(size_rcons s n).
+have: is_fulcrum (rcons s n)
+        (if sumz (take best_i s) < sumz (rcons s n) then size (rcons s n)
+         else best_i).
+  move: best_iP; rewrite !is_fulcrumP=> best_iP j.
+  case: ltrP=> [/ltrW le|ge].
+    rewrite take_size.
+    case: (ltnP j (size (rcons s n))) => [|?]; last by rewrite take_oversize.
+    rewrite size_rcons -{1}cats1 => j_s; rewrite takel_cat //.
+    exact: ler_trans le.
+  case: (ltnP j (size (rcons s n))) => [|?].
+    by rewrite size_rcons -cats1 => j_s; rewrite !takel_cat.
+  by rewrite take_oversize // -{2}cats1 takel_cat.
 case: ifP=> _ best_iP'; first by rewrite -{2}[rcons _ _]take_size; apply: IH.
 rewrite -(takel_cat [:: n] bounds) cats1; apply: IH=> //.
 by rewrite size_rcons; apply: leq_trans (leqnSn (size _)).
