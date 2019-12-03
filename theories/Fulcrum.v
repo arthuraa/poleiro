@@ -1,6 +1,6 @@
 (* begin hide *)
-From mathcomp Require Import ssreflect ssrfun ssrbool ssrnat eqtype seq bigop.
-From mathcomp Require Import ssralg ssrnum ssrint.
+From mathcomp Require Import ssreflect ssrfun ssrbool ssrnat eqtype seq.
+From mathcomp Require Import fintype bigop ssralg ssrnum ssrint tuple.
 (* end hide *)
 (** Hillel Wayne #<a
 href="https://www.hillelwayne.com/post/theorem-prover-showdown/">posted a
@@ -104,9 +104,9 @@ this is not related to being functional or imperative.)
 
 ** Fulcrum
 
-The last problem was also the most challenging.  We had to write a function to
-compute the _fulcrum_ of a sequence of integers [s], which is defined to be the
-index [i] that maximizes the quantity [fv s i] shown below. *)
+The last problem was also the most challenging.  The goal was to compute the
+_fulcrum_ of a sequence of integers [s], which is defined to be the index [i]
+that maximizes the quantity [fv s i] shown below. *)
 
 (* begin hide *)
 Section Fulcrum.
@@ -123,10 +123,10 @@ Definition fv s i := sumz (take i s) - sumz (drop i s).
 
 Definition is_fulcrum s i := forall j, fv s j <= fv s i.
 
-(** It is easy to compute the fulcrum by computing [fv s i] for all values of
-[i].  However, this results in a quadratic algorithm, and the problem asked for
-a linear solution.  To avoid this pitfall, note that optimizing [fv s i] is
-equivalent to optimizing [sumz s (take i s)]. *)
+(** It is easy to find the fulcrum by computing [fv s i] for all indices [i];
+however, this requires quadratic time, and the problem asked for a linear
+solution.  To avoid this pitfall, note that optimizing [fv s i] is equivalent to
+optimizing [sumz (take i s)]. *)
 
 Lemma fvE s i : fv s i = sumz (take i s) *+ 2 - sumz s.
 Proof.
@@ -142,22 +142,22 @@ by rewrite /is_fulcrum; split=> H j; rewrite ?P // -P.
 Qed.
 
 (** This enables a simple, efficient solution by dynamic programming, computed
-    in the following two functions. The main loop is tail-recursive, and takes
-    the following parameters:
+in the following two functions. The main loop is tail-recursive, and takes the
+following parameters:
 
-    - [rest]: The part of the sequence that we still have to traverse;
+- [rest]: The part of the sequence that we still have to traverse;
 
-    - [best]: the optimal value of [sumz s i], where [s] is the sequence of
-      elements we have traversed thus far;
+- [best]: the optimal value of [sumz (take i s)], where [s] is the sequence of
+  elements we have traversed thus far;
 
-    - [curr]: the current sum [sumz s];
+- [best_i]: the index where the optimum [best] is attained; and
 
-    - [best_i]: the index where the optimum [best] is attained; and
+- [curr]: the current sum [sumz s];
 
-    - [curr_i]: the number of elements traversed thus far.
+- [curr_i]: the number of elements traversed thus far.
 
-    The top-level function is defined by calling the main loop with suitable
-    initial values. *)
+The top-level function is defined by calling the main loop with suitable initial
+values. *)
 
 Implicit Types (best curr : int) (best_i curr_i : nat).
 
@@ -173,33 +173,32 @@ Fixpoint loop rest best best_i curr curr_i : nat :=
 Definition fulcrum s := loop s 0 0 0 0.
 
 (** To prove the correctness of [fulcrum], we need to relate the optimal index
-    for [rcons s x] in terms of the optimal index for [s].  ([rcons s x] means
-    the result of appending [x] to the end of [s].) *)
+for [rcons s x] in terms of the optimal index for [s].  ([rcons s x] means the
+result of appending [x] to the end of [s].) *)
 
-Lemma sumz1 s x : sumz (rcons s x) = sumz s + x.
+Lemma sumz1 s n : sumz (rcons s n) = sumz s + n.
 Proof. by rewrite /sumz -cats1 big_cat big_seq1. Qed.
 
-Lemma is_fulcrum_rcons s best_i x :
+Lemma is_fulcrum_rcons s best_i n :
   is_fulcrum s best_i ->
   (best_i <= size s)%N ->
-  is_fulcrum (rcons s x)
-    (if sumz (take best_i s) < sumz s + x then (size s).+1
+  is_fulcrum (rcons s n)
+    (if sumz (take best_i s) < sumz (rcons s n) then size (rcons s n)
      else best_i).
 Proof.
 rewrite !is_fulcrumP=> best_iP bounds j.
 case: ltrP=> [/ltrW le|ge].
-  rewrite -(size_rcons s x) take_size sumz1.
-  case: (ltnP j (size (rcons s x))) => [|s_j].
-    rewrite size_rcons -cats1 => j_s; rewrite takel_cat //.
-    exact: ler_trans le.
-  by rewrite take_oversize // sumz1.
-case: (ltnP j (size (rcons s x))) => [|s_j].
+  rewrite take_size.
+  case: (ltnP j (size (rcons s n))) => [|?]; last by rewrite take_oversize.
+  rewrite size_rcons -{1}cats1 => j_s; rewrite takel_cat //.
+  exact: ler_trans le.
+case: (ltnP j (size (rcons s n))) => [|?].
   by rewrite size_rcons -cats1 => j_s; rewrite !takel_cat.
-by rewrite take_oversize // sumz1 -cats1 takel_cat.
+by rewrite take_oversize // -{2}cats1 takel_cat.
 Qed.
 
 (** This result implies that [is_fulcrum s best_i] is a loop invariant, from
-    which the final result follows. *)
+which the final result follows. *)
 
 Lemma loopP best_i s rest :
   is_fulcrum s best_i ->
@@ -207,12 +206,12 @@ Lemma loopP best_i s rest :
   is_fulcrum (s ++ rest)
     (loop rest (sumz (take best_i s)) best_i (sumz s) (size s)).
 Proof.
-elim: rest s best_i=> [|x rest IH] s1 best_i //=; first by rewrite cats0.
+elim: rest s best_i=> [|n rest IH] s1 best_i //=; first by rewrite cats0.
 move=> best_iP bounds; rewrite -cat1s catA cats1.
-have := is_fulcrum_rcons _ _ x best_iP bounds.
-rewrite -sumz1 -(size_rcons s1 x).
+have := is_fulcrum_rcons _ _ n best_iP bounds.
+rewrite -sumz1 -(size_rcons s1 n).
 case: ifP=> _ best_iP'; first by rewrite -{2}[rcons _ _]take_size; apply: IH.
-rewrite -(takel_cat [:: x] bounds) cats1; apply: IH=> //.
+rewrite -(takel_cat [:: n] bounds) cats1; apply: IH=> //.
 by rewrite size_rcons; apply: leq_trans (leqnSn (size _)).
 Qed.
 
