@@ -118,7 +118,7 @@ Implicit Types (s : seq int) (n : int) (i j : nat).
 
 Definition sumz s := \sum_(n <- s) n.
 
-Definition fv s i := sumz (take i s) - sumz (drop i s).
+Definition fv s i := `|sumz (take i s) - sumz (drop i s)|.
 
 Definition is_fulcrum s i := forall j, fv s i <= fv s j.
 
@@ -144,19 +144,6 @@ Qed.
 _linear_ solution.  We can do better by noting that optimizing [fv s i] is
 equivalent to optimizing [sumz (take i s)]. *)
 
-Lemma fvE s i : fv s i = sumz (take i s) *+ 2 - sumz s.
-Proof.
-by rewrite /sumz -{3}(cat_take_drop i s) big_cat /= opprD addrA mulr2n addrK.
-Qed.
-
-Fact is_fulcrumP s i :
-  is_fulcrum s i <-> forall j, sumz (take i s) <= sumz (take j s).
-Proof.
-have P j: (sumz (take i s) <= sumz (take j s)) = (fv s i <= fv s j).
-  by rewrite 2!fvE ler_add2r ler_muln2r.
-by rewrite /is_fulcrum; split=> H j; rewrite ?P // -P.
-Qed.
-
 (** Thus, instead of computing each [sumz (take i s)] from scratch, we can
 simply compute [sumz (take (i + 1) s)] from [sumz (take i s)] by adding the
 missing value.  This enables a simple, efficient solution by dynamic
@@ -178,14 +165,14 @@ Implicit Types (rest : seq int) (best curr : int) (best_i curr_i : nat).
 
 Fixpoint loop rest best best_i curr curr_i : nat :=
   if rest is n :: rest' then
-    let curr'   := curr + n  in
+    let curr'   := n *+ 2 + curr  in
     let curr_i' := curr_i.+1 in
-    let best'   := if curr' < best then curr'   else best   in
-    let best_i' := if curr' < best then curr_i' else best_i in
+    let best'   := if `|curr'| < `|best| then curr'   else best   in
+    let best_i' := if `|curr'| < `|best| then curr_i' else best_i in
     loop rest' best' best_i' curr' curr_i'
   else best_i.
 
-Definition fulcrum s := loop s 0 0 0 0.
+Definition fulcrum s := loop s (- sumz s) 0 (- sumz s) 0.
 
 (** To prove the correctness of [fulcrum], we just need to prove the correctness
 of [loop], for which it suffices to assume that the parameters are set up
@@ -194,35 +181,53 @@ appropriately. *)
 Lemma sumz1 s n : sumz (rcons s n) = sumz s + n.
 Proof. by rewrite /sumz -cats1 big_cat big_seq1. Qed.
 (* end hide *)
-Lemma loopP best_i s rest :
-  is_fulcrum s best_i ->
+Lemma fvE s i : fv s i = `|sumz (take i s) *+ 2 - sumz s|.
+Proof.
+by rewrite /sumz -{3}(cat_take_drop i s) big_cat /= opprD addrA mulr2n addrK.
+Qed.
+
+Definition inv s k i :=
+  forall j, `|sumz (take i s) *+ 2 - k| <= `|sumz (take j s) *+ 2 - k|.
+
+Lemma loopP best_i s k rest :
+  inv s k best_i ->
   (best_i <= size s)%N ->
-  is_fulcrum (s ++ rest)
-    (loop rest (sumz (take best_i s)) best_i (sumz s) (size s)).
+  inv (s ++ rest) k
+    (loop rest
+      (sumz (take best_i s) *+ 2 - k) best_i (sumz s *+ 2 - k) (size s)).
 (* begin hide *)
 Proof.
 elim: rest s best_i=> [|n rest IH] s best_i /=; first by rewrite cats0.
-move=> best_iP bounds; rewrite -cat1s catA cats1 -sumz1 -(size_rcons s n).
-suff: is_fulcrum (rcons s n)
-        (if sumz (rcons s n) < sumz (take best_i s) then size (rcons s n)
-         else best_i).
-  case: ifP=> _ ?; first by rewrite -{2}[rcons _ _]take_size; apply: IH.
-  rewrite -(takel_cat [:: n] bounds) cats1; apply: IH=> //.
+move=> best_iP bounds.
+have e: take best_i (rcons s n) = take best_i s.
+  by rewrite -cats1 takel_cat.
+rewrite -e -cat1s catA cats1.
+rewrite -(size_rcons s n) addrA -mulrnDl [n + _]addrC -sumz1.
+set best    := sumz (take best_i (rcons s n)) *+ 2 - _.
+set curr'   := sumz (rcons s n) *+ 2 - _.
+set best'   := if `|curr'| < `|best| then curr' else best.
+set best_i' := if `|curr'| < `|best| then size _ else best_i.
+have bounds': (best_i' <= size (rcons s n))%N.
+  rewrite /best_i'; case: ifP=> _ //.
   by rewrite size_rcons; apply: leq_trans (leqnSn (size _)).
-move: best_iP; rewrite !is_fulcrumP; case: ltrP=> [/ltrW le|ge] best_iP j.
-  rewrite take_size.
-  case: (ltnP j (size (rcons s n))) => [|?]; last by rewrite take_oversize.
+have ->: best' = sumz (take best_i' (rcons s n)) *+ 2 - k.
+  by rewrite /best' /best_i'; case: ifP=> _; rewrite ?take_size.
+apply: IH=> // j; rewrite /best_i'; case: ltrP=> [found|not_found].
+  rewrite take_size /best.
+  case: (ltnP j (size (rcons s n)))=> [|?]; last by rewrite take_oversize.
   rewrite size_rcons -{2}cats1 => j_s; rewrite takel_cat //.
-  exact: ler_trans le _.
-case: (ltnP j (size (rcons s n))) => [|?].
-  by rewrite size_rcons -cats1 => j_s; rewrite !takel_cat.
-by rewrite [take j _]take_oversize // -{1}cats1 takel_cat.
+  by apply: ler_trans (ltrW found) _; rewrite /best e.
+case: (ltnP j (size (rcons s n)))=> [|?].
+  by rewrite size_rcons -{2}cats1 => j_s; rewrite takel_cat // e.
+by rewrite [take j _]take_oversize.
 Qed.
 (* end hide *)
 Theorem fulcrumP s : is_fulcrum s (fulcrum s).
 Proof.
-have base : is_fulcrum [::] 0 by rewrite is_fulcrumP /= /sumz big_nil.
-by have /= := loopP _ _ s base (leq0n _); rewrite /sumz big_nil.
+have base: inv [::] (sumz s) 0.
+  by move=> j; rewrite take_oversize //.
+have /= := loopP _ _ _ s base (leq0n _).
+by rewrite [sumz [::]]/sumz big_nil /= add0r => endP j; rewrite !fvE.
 Qed.
 
 (** The algorithm presented here makes one small improvement over the #<a
