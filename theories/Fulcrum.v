@@ -141,84 +141,83 @@ by rewrite (minn_idPr s_j) take_size drop_size take_oversize // drop_oversize.
 Qed.
 
 (** Unfortunately, this would run in quadratic time, and the problem asked for a
-_linear_ solution.  We can do better by noting that optimizing [fv s i] is
-equivalent to optimizing [sumz (take i s)]. *)
+_linear_ solution.  We can do better by computing the values of [fv s i]
+incrementally, as in dynamic programming.  We begin by recasting [fv] in a more
+convenient form.  *)
 
-(** Thus, instead of computing each [sumz (take i s)] from scratch, we can
-simply compute [sumz (take (i + 1) s)] from [sumz (take i s)] by adding the
-missing value.  This enables a simple, efficient solution by dynamic
-programming.  The workhorse is [loop], which computes the fulcrum of a sequence
-of the form [s ++ rest] assuming that we have already computed the fulcrum of
-[s].  It takes the following parameters:
+Lemma fvE s i : fv s i = `|sumz (take i s) *+ 2 - sumz s|.
+(* begin hide *)
+Proof.
+by rewrite /sumz -{3}(cat_take_drop i s) big_cat /= opprD addrA mulr2n addrK.
+Qed.
+(* end hide *)
 
-- [rest]: The part of the sequence that we still have to traverse;
+(** This allows us to compute the fulcrum of [s] by traversing [s] and keeping
+the following variables:
 
-- [best]: the optimal value of [sumz (take i s)];
+- [best_i]: The fulcrum of [s] with respect to the positions traversed so far;
 
-- [best_i]: the index where the optimum [best] is attained; and
+- [curr_i]: The current position;
 
-- [curr]: the current sum [sumz s];
+- [best]: The value of [sumz (take best_i s) * 2 - sumz s];
 
-- [curr_i]: the number of elements traversed so far. *)
+- [curr]: The value of [sumz (take curr_i s) * 2 - sumz s] *)
 
-Implicit Types (rest : seq int) (best curr : int) (best_i curr_i : nat).
+Implicit Types (best curr : int) (best_i curr_i : nat).
 
-Fixpoint loop rest best best_i curr curr_i : nat :=
-  if rest is n :: rest' then
+Fixpoint loop s best_i curr_i best curr : nat :=
+  if s is n :: s' then
     let curr'   := n *+ 2 + curr  in
     let curr_i' := curr_i.+1 in
     let best'   := if `|curr'| < `|best| then curr'   else best   in
     let best_i' := if `|curr'| < `|best| then curr_i' else best_i in
-    loop rest' best' best_i' curr' curr_i'
+    loop s' best_i' curr_i' best' curr'
   else best_i.
 
-Definition fulcrum s := loop s (- sumz s) 0 (- sumz s) 0.
+Definition fulcrum s := loop s 0 0 (- sumz s) (- sumz s).
 
 (** To prove the correctness of [fulcrum], we just need to prove the correctness
 of [loop], for which it suffices to assume that the parameters are set up
-appropriately. *)
+appropriately.  We generalize the property a little bit so that it can be proved
+inductively.  *)
 (* begin hide *)
 Lemma sumz1 s n : sumz (rcons s n) = sumz s + n.
 Proof. by rewrite /sumz -cats1 big_cat big_seq1. Qed.
 (* end hide *)
-Lemma fvE s i : fv s i = `|sumz (take i s) *+ 2 - sumz s|.
-Proof.
-by rewrite /sumz -{3}(cat_take_drop i s) big_cat /= opprD addrA mulr2n addrK.
-Qed.
 
 Definition inv s k i :=
   forall j, `|sumz (take i s) *+ 2 - k| <= `|sumz (take j s) *+ 2 - k|.
 
-Lemma loopP best_i s k rest :
-  inv s k best_i ->
-  (best_i <= size s)%N ->
-  inv (s ++ rest) k
-    (loop rest
-      (sumz (take best_i s) *+ 2 - k) best_i (sumz s *+ 2 - k) (size s)).
+Lemma loopP best_i s1 k s2 :
+  inv s1 k best_i ->
+  (best_i <= size s1)%N ->
+  inv (s1 ++ s2) k
+    (loop s2 best_i (size s1)
+      (sumz (take best_i s1) *+ 2 - k) (sumz s1 *+ 2 - k)).
 (* begin hide *)
 Proof.
-elim: rest s best_i=> [|n rest IH] s best_i /=; first by rewrite cats0.
+elim: s2 s1 best_i=> [|n s2 IH] s1 best_i /=; first by rewrite cats0.
 move=> best_iP bounds.
-have e: take best_i (rcons s n) = take best_i s.
+have e: take best_i (rcons s1 n) = take best_i s1.
   by rewrite -cats1 takel_cat.
 rewrite -e -cat1s catA cats1.
-rewrite -(size_rcons s n) addrA -mulrnDl [n + _]addrC -sumz1.
-set best    := sumz (take best_i (rcons s n)) *+ 2 - _.
-set curr'   := sumz (rcons s n) *+ 2 - _.
+rewrite -(size_rcons s1 n) addrA -mulrnDl [n + _]addrC -sumz1.
+set best    := sumz (take best_i (rcons s1 n)) *+ 2 - _.
+set curr'   := sumz (rcons s1 n) *+ 2 - _.
 set best'   := if `|curr'| < `|best| then curr' else best.
 set best_i' := if `|curr'| < `|best| then size _ else best_i.
-have bounds': (best_i' <= size (rcons s n))%N.
+have bounds': (best_i' <= size (rcons s1 n))%N.
   rewrite /best_i'; case: ifP=> _ //.
   by rewrite size_rcons; apply: leq_trans (leqnSn (size _)).
-have ->: best' = sumz (take best_i' (rcons s n)) *+ 2 - k.
+have ->: best' = sumz (take best_i' (rcons s1 n)) *+ 2 - k.
   by rewrite /best' /best_i'; case: ifP=> _; rewrite ?take_size.
 apply: IH=> // j; rewrite /best_i'; case: ltrP=> [found|not_found].
   rewrite take_size /best.
-  case: (ltnP j (size (rcons s n)))=> [|?]; last by rewrite take_oversize.
-  rewrite size_rcons -{2}cats1 => j_s; rewrite takel_cat //.
+  case: (ltnP j (size (rcons s1 n)))=> [|?]; last by rewrite take_oversize.
+  rewrite size_rcons -{2}cats1 => j_s1; rewrite takel_cat //.
   by apply: ler_trans (ltrW found) _; rewrite /best e.
-case: (ltnP j (size (rcons s n)))=> [|?].
-  by rewrite size_rcons -{2}cats1 => j_s; rewrite takel_cat // e.
+case: (ltnP j (size (rcons s1 n)))=> [|?].
+  by rewrite size_rcons -{2}cats1 => j_s1; rewrite takel_cat // e.
 by rewrite [take j _]take_oversize.
 Qed.
 (* end hide *)
@@ -231,13 +230,10 @@ by rewrite [sumz [::]]/sumz big_nil /= add0r => endP j; rewrite !fvE.
 Qed.
 
 (** The algorithm presented here makes one small improvement over the #<a
-href="https://rise4fun.com/Dafny/UD9n">Dafny solution</a>#: it traverses the
-input list only once, which would allow to compute the fulcrum _online_, without
-having the entire sequence stored in memory.  The original program had to
-traverse the sequence forward and backward to compute the values of [sumz (take
-i s)] and [sumz (drop i s)], whereas our algorithm only needs the values of
-[sumz (take i s)], thanks to [is_fulcrumP].  It would be interesting to see how
-a Dafny solution would leverage this property.  *)
+href="https://rise4fun.com/Dafny/UD9n">Dafny solution</a>#: it uses constant
+auxiliary memory, whereas the original program used intermediate arrays to store
+the values of [sumz (take i s)] and [sumz (drop i s)].  It would be interesting
+to try to translate this algorithm back into Dafny.  *)
 (* begin hide *)
 End Fulcrum.
 (* end hide *)
