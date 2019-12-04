@@ -189,7 +189,7 @@ Definition inv s k best_i curr_i :=
   forall j, (j <= curr_i)%N ->
     `|sumz (take best_i s) *+ 2 - k| <= `|sumz (take j s) *+ 2 - k|.
 
-Lemma loopP best_i s1 k s2 :
+Lemma loopP s1 s2 k best_i :
   inv (s1 ++ s2) k best_i (size s1) ->
   (best_i <= size s1)%N ->
   inv (s1 ++ s2) k
@@ -222,7 +222,7 @@ Qed.
 Theorem fulcrumP s : is_fulcrum s (fulcrum s).
 Proof.
 have base: inv ([::] ++ s) (sumz s) 0 (size (Nil int)) by case.
-have /= := loopP _ _ _ s base (leq0n _).
+have /= := loopP _ _ _ _ base (leq0n _).
 rewrite take0 [sumz [::]]/sumz big_nil add0r => endP j; rewrite !fvE.
 suff ->: take j s = take (minn j (size s)) s.
   apply: endP; exact: geq_minr.
