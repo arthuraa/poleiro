@@ -185,48 +185,49 @@ Lemma sumz1 s n : sumz (rcons s n) = sumz s + n.
 Proof. by rewrite /sumz -cats1 big_cat big_seq1. Qed.
 (* end hide *)
 
-Definition inv s k i :=
-  forall j, `|sumz (take i s) *+ 2 - k| <= `|sumz (take j s) *+ 2 - k|.
+Definition inv s k best_i curr_i :=
+  forall j, (j <= curr_i)%N ->
+    `|sumz (take best_i s) *+ 2 - k| <= `|sumz (take j s) *+ 2 - k|.
 
 Lemma loopP best_i s1 k s2 :
-  inv s1 k best_i ->
+  inv (s1 ++ s2) k best_i (size s1) ->
   (best_i <= size s1)%N ->
   inv (s1 ++ s2) k
     (loop s2 best_i (size s1)
-      (sumz (take best_i s1) *+ 2 - k) (sumz s1 *+ 2 - k)).
+      (sumz (take best_i (s1 ++ s2)) *+ 2 - k) (sumz s1 *+ 2 - k))
+    (size (s1 ++ s2)).
 (* begin hide *)
 Proof.
 elim: s2 s1 best_i=> [|n s2 IH] s1 best_i /=; first by rewrite cats0.
-move=> best_iP bounds.
-have e: take best_i (rcons s1 n) = take best_i s1.
-  by rewrite -cats1 takel_cat.
-rewrite -e -cat1s catA cats1.
-rewrite -(size_rcons s1 n) addrA -mulrnDl [n + _]addrC -sumz1.
-set best    := sumz (take best_i (rcons s1 n)) *+ 2 - _.
+rewrite -cat1s catA cats1 -(size_rcons s1 n).
+rewrite addrA -mulrnDl [n + _]addrC -sumz1 => best_iP bounds.
+set best    := sumz (take best_i (rcons s1 n ++ s2)) *+ 2 - _.
 set curr'   := sumz (rcons s1 n) *+ 2 - _.
 set best'   := if `|curr'| < `|best| then curr' else best.
 set best_i' := if `|curr'| < `|best| then size _ else best_i.
 have bounds': (best_i' <= size (rcons s1 n))%N.
   rewrite /best_i'; case: ifP=> _ //.
   by rewrite size_rcons; apply: leq_trans (leqnSn (size _)).
-have ->: best' = sumz (take best_i' (rcons s1 n)) *+ 2 - k.
-  by rewrite /best' /best_i'; case: ifP=> _; rewrite ?take_size.
-apply: IH=> // j; rewrite /best_i'; case: ltrP=> [found|not_found].
-  rewrite take_size /best.
-  case: (ltnP j (size (rcons s1 n)))=> [|?]; last by rewrite take_oversize.
-  rewrite size_rcons -{2}cats1 => j_s1; rewrite takel_cat //.
-  by apply: ler_trans (ltrW found) _; rewrite /best e.
-case: (ltnP j (size (rcons s1 n)))=> [|?].
-  by rewrite size_rcons -{2}cats1 => j_s1; rewrite takel_cat // e.
-by rewrite [take j _]take_oversize.
+have ->: best' = sumz (take best_i' (rcons s1 n ++ s2)) *+ 2 - k.
+  by rewrite /best' /best_i'; case: ifP=> _; rewrite // takel_cat // take_size.
+apply: IH=> // j jP; rewrite /best_i'; case: ltrP=> [found|not_found].
+  rewrite takel_cat // take_size.
+  case: ltngtP jP=> // [|<-]; last by rewrite takel_cat // take_size.
+  rewrite size_rcons => jP _; apply: ler_trans (ltrW found) _; exact: best_iP.
+case: ltngtP jP=> // [|<-].
+  by rewrite size_rcons => jP _; apply: best_iP.
+by rewrite [take (size _) _]takel_cat // ?take_size.
 Qed.
 (* end hide *)
 Theorem fulcrumP s : is_fulcrum s (fulcrum s).
 Proof.
-have base: inv [::] (sumz s) 0.
-  by move=> j; rewrite take_oversize //.
+have base: inv ([::] ++ s) (sumz s) 0 (size (Nil int)) by case.
 have /= := loopP _ _ _ s base (leq0n _).
-by rewrite [sumz [::]]/sumz big_nil /= add0r => endP j; rewrite !fvE.
+rewrite take0 [sumz [::]]/sumz big_nil add0r => endP j; rewrite !fvE.
+suff ->: take j s = take (minn j (size s)) s.
+  apply: endP; exact: geq_minr.
+case: (leqP j (size s))=> [/minn_idPl -> //|/ltnW s_j].
+by rewrite take_oversize // (minn_idPr s_j) take_size.
 Qed.
 
 (** The algorithm presented here makes one small improvement over the #<a
