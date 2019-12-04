@@ -105,7 +105,7 @@ this respect as well.)
 
 The last problem was also the most challenging.  The goal was to compute the
 _fulcrum_ of a sequence of integers [s], which is defined to be the index [i]
-that maximizes the quantity [fv s i] shown below. *)
+that minimizes the quantity [fv s i] shown below. *)
 
 (* begin hide *)
 Section Fulcrum.
@@ -120,19 +120,19 @@ Definition sumz s := \sum_(n <- s) n.
 
 Definition fv s i := sumz (take i s) - sumz (drop i s).
 
-Definition is_fulcrum s i := forall j, fv s j <= fv s i.
+Definition is_fulcrum s i := forall j, fv s i <= fv s j.
 
 (** It would be easy to write another functional program that is obviously
 correct in this case: just compute [fv s i] for all indices [i] and return the
-index that yields the largest value.  Indeed, Math Comp already provides this
+index that yields the smallest value.  Indeed, Math Comp already provides this
 functionality for us. *)
 
 Definition fulcrum_naive s :=
-  [arg maxr_(i > ord0 : 'I_(size s).+1) fv s (val i)].
+  [arg minr_(i < ord0 : 'I_(size s).+1) fv s (val i)].
 
 Lemma fulcrum_naiveP s : is_fulcrum s (fulcrum_naive s).
 Proof.
-rewrite /fulcrum_naive; case: arg_maxrP=> //= i _ iP j.
+rewrite /fulcrum_naive; case: arg_minrP=> //= i _ iP j.
 have jP: (minn j (size s) < (size s).+1)%N by rewrite ltnS geq_minr.
 pose j' : 'I_(size s).+1 := Ordinal jP.
 suff ->: fv s j = fv s (val j') by exact: iP.
@@ -150,9 +150,9 @@ by rewrite /sumz -{3}(cat_take_drop i s) big_cat /= opprD addrA mulr2n addrK.
 Qed.
 
 Fact is_fulcrumP s i :
-  is_fulcrum s i <-> forall j, sumz (take j s) <= sumz (take i s).
+  is_fulcrum s i <-> forall j, sumz (take i s) <= sumz (take j s).
 Proof.
-have P j: (sumz (take j s) <= sumz (take i s)) = (fv s j <= fv s i).
+have P j: (sumz (take i s) <= sumz (take j s)) = (fv s i <= fv s j).
   by rewrite 2!fvE ler_add2r ler_muln2r.
 by rewrite /is_fulcrum; split=> H j; rewrite ?P // -P.
 Qed.
@@ -180,8 +180,8 @@ Fixpoint loop rest best best_i curr curr_i : nat :=
   if rest is n :: rest' then
     let curr'   := curr + n  in
     let curr_i' := curr_i.+1 in
-    let best'   := if best < curr' then curr'   else best   in
-    let best_i' := if best < curr' then curr_i' else best_i in
+    let best'   := if curr' < best then curr'   else best   in
+    let best_i' := if curr' < best then curr_i' else best_i in
     loop rest' best' best_i' curr' curr_i'
   else best_i.
 
@@ -204,7 +204,7 @@ Proof.
 elim: rest s best_i=> [|n rest IH] s best_i /=; first by rewrite cats0.
 move=> best_iP bounds; rewrite -cat1s catA cats1 -sumz1 -(size_rcons s n).
 suff: is_fulcrum (rcons s n)
-        (if sumz (take best_i s) < sumz (rcons s n) then size (rcons s n)
+        (if sumz (rcons s n) < sumz (take best_i s) then size (rcons s n)
          else best_i).
   case: ifP=> _ ?; first by rewrite -{2}[rcons _ _]take_size; apply: IH.
   rewrite -(takel_cat [:: n] bounds) cats1; apply: IH=> //.
@@ -212,11 +212,11 @@ suff: is_fulcrum (rcons s n)
 move: best_iP; rewrite !is_fulcrumP; case: ltrP=> [/ltrW le|ge] best_iP j.
   rewrite take_size.
   case: (ltnP j (size (rcons s n))) => [|?]; last by rewrite take_oversize.
-  rewrite size_rcons -{1}cats1 => j_s; rewrite takel_cat //.
-  exact: ler_trans le.
+  rewrite size_rcons -{2}cats1 => j_s; rewrite takel_cat //.
+  exact: ler_trans le _.
 case: (ltnP j (size (rcons s n))) => [|?].
   by rewrite size_rcons -cats1 => j_s; rewrite !takel_cat.
-by rewrite take_oversize // -{2}cats1 takel_cat.
+by rewrite [take j _]take_oversize // -{1}cats1 takel_cat.
 Qed.
 (* end hide *)
 Theorem fulcrumP s : is_fulcrum s (fulcrum s).
