@@ -107,20 +107,37 @@ The last problem was also the most challenging.  The goal was to compute the
 _fulcrum_ of a sequence of integers [s], which is defined to be the index [i]
 that minimizes the quantity [fv s i] shown below. *)
 
-(* begin hide *)
+Lemma foldlP T S f (s : seq T) x0 (I : nat -> S -> Prop) :
+  I 0 x0 ->
+  (forall (i : 'I_(size s)) x,
+     I i x ->
+     I i.+1 (f x (tnth (in_tuple s) i))) ->
+  I (size s) (foldl f x0 s).
+Proof.
+rewrite -[s]cat0s [in foldl _ _ _]/= -[0]/(size (Nil T)).
+elim: s [::] x0=> [|a s2 IH] s1 x0; first by rewrite cats0.
+rewrite -cat1s catA cats1 => x0P inv /=; apply: IH=> //.
+have iP: size s1 < size (rcons s1 a ++ s2).
+  by rewrite size_cat size_rcons leq_addr.
+move: (inv (Sub (size s1) iP) _ x0P).
+by rewrite (tnth_nth a) /= nth_cat size_rcons leqnn nth_rcons ltnn eqxx.
+Qed.
+
 Section Fulcrum.
 
 Open Scope ring_scope.
 
 Import GRing.Theory Num.Theory.
 (* end hide *)
-Implicit Types (s : seq int) (n : int) (i j : nat).
+Implicit Types (s : seq int) (n : int).
 
-Definition sumz s := \sum_(n <- s) n.
+Local Notation "s # j" := (tnth (in_tuple s) j) (at level 30).
 
-Definition fv s i := `|sumz (take i s) - sumz (drop i s)|.
+Definition fv s i :=
+  \sum_(l < size s | (l <  i)%N) s # l -
+  \sum_(l < size s | (i <= l)%N) s # l.
 
-Definition is_fulcrum s i := forall j, fv s i <= fv s j.
+Definition is_fulcrum s i := forall j, `|fv s i| <= `|fv s j|.
 
 (** It would be easy to write another functional program that is obviously
 correct in this case: just compute [fv s i] for all indices [i] and return the
@@ -128,16 +145,31 @@ index that yields the smallest value.  Indeed, Math Comp already provides this
 functionality for us. *)
 
 Definition fulcrum_naive s :=
-  [arg minr_(i < ord0 : 'I_(size s).+1) fv s (val i)].
+  [arg minr_(i < ord0 : 'I_(size s).+1) `|fv s i|].
+
+Lemma fvE s i :
+  fv s i = (\sum_(j < size s | (j < i)%N) s # j) *+ 2 - \sum_(n <- s) n.
+(* begin hide *)
+Proof.
+rewrite /fv big_tnth.
+rewrite [\sum_(j < size s) _](bigID (fun j : 'I__ => (j < i)%N)) /=.
+rewrite opprD addrA mulr2n addrK; congr (_ - _); apply/eq_bigl=> j.
+by rewrite leqNgt.
+Qed.
+(* end hide *)
+
+Lemma fv_overflow s i : fv s i = fv s (minn i (size s)).
+Proof.
+rewrite !fvE; congr (_ *+ 2 - _).
+by apply: eq_bigl=> l; rewrite leq_min (valP l) andbT.
+Qed.
 
 Lemma fulcrum_naiveP s : is_fulcrum s (fulcrum_naive s).
 Proof.
 rewrite /fulcrum_naive; case: arg_minrP=> //= i _ iP j.
-have jP: (minn j (size s) < (size s).+1)%N by rewrite ltnS geq_minr.
-pose j' : 'I_(size s).+1 := Ordinal jP.
-suff ->: fv s j = fv s (val j') by exact: iP.
-rewrite /fv /=; case: (ltnP j (size s))=> [/ltnW/minn_idPl -> //|s_j].
-by rewrite (minn_idPr s_j) take_size drop_size take_oversize // drop_oversize.
+move/(_ (inord (minn j (size s))) erefl): iP.
+rewrite (_ : fv s (inord _) = fv s j) //= [RHS]fv_overflow.
+by rewrite inordK ?ltnS ?geq_minr //.
 Qed.
 
 (** Unfortunately, this would run in quadratic time, and the problem asked for a
@@ -145,89 +177,58 @@ _linear_ solution.  We can do better by computing the values of [fv s i]
 incrementally, as in dynamic programming.  We begin by recasting [fv] in a more
 convenient form.  *)
 
-Lemma fvE s i : fv s i = `|sumz (take i s) *+ 2 - sumz s|.
-(* begin hide *)
+Record state := State {
+  best_i : nat;
+  curr_i : nat;
+  best   : int;
+  curr   : int;
+}.
+
+Variant fulcrum_inv s i st : Prop :=
+| FlucrumInv of
+ (st.(best_i) <  (size s).+1)%N   &
+ (st.(best_i) <= i)%N             &
+  st.(curr_i) =  i                &
+  st.(best)   =  fv s st.(best_i) &
+  st.(curr)   =  fv s i           &
+  (forall j, (j <= i)%N -> `|fv s st.(best_i)| <= `|fv s j|).
+
+Definition fulcrum_body st n :=
+  let curr'   := n *+ 2 + st.(curr)  in
+  let curr_i' := st.(curr_i).+1 in
+  let best'   := if `|curr'| < `|st.(best)| then curr'   else st.(best)   in
+  let best_i' := if `|curr'| < `|st.(best)| then curr_i' else st.(best_i) in
+  State best_i' curr_i' best' curr'.
+
+Definition fulcrum s :=
+  let k := - \sum_(n <- s) n in
+  (foldl fulcrum_body (State 0 0 k k) s).(best_i).
+
+Lemma fulcrumP s : is_fulcrum s (fulcrum s).
 Proof.
-by rewrite /sumz -{3}(cat_take_drop i s) big_cat /= opprD addrA mulr2n addrK.
-Qed.
-(* end hide *)
-
-(** This allows us to compute the fulcrum of [s] by traversing [s] and keeping
-the following variables:
-
-- [best_i]: The fulcrum of [s] with respect to the positions traversed so far;
-
-- [curr_i]: The current position;
-
-- [best]: The value of [sumz (take best_i s) * 2 - sumz s];
-
-- [curr]: The value of [sumz (take curr_i s) * 2 - sumz s] *)
-
-Implicit Types (best curr : int) (best_i curr_i : nat).
-
-Fixpoint loop s best_i curr_i best curr : nat :=
-  if s is n :: s' then
-    let curr'   := n *+ 2 + curr  in
-    let curr_i' := curr_i.+1 in
-    let best'   := if `|curr'| < `|best| then curr'   else best   in
-    let best_i' := if `|curr'| < `|best| then curr_i' else best_i in
-    loop s' best_i' curr_i' best' curr'
-  else best_i.
-
-Definition fulcrum s := loop s 0 0 (- sumz s) (- sumz s).
-
-(** To prove the correctness of [fulcrum], we just need to prove the correctness
-of [loop], for which it suffices to assume that the parameters are set up
-appropriately.  We generalize the property a little bit so that it can be proved
-inductively.  *)
-(* begin hide *)
-Lemma sumz1 s n : sumz (rcons s n) = sumz s + n.
-Proof. by rewrite /sumz -cats1 big_cat big_seq1. Qed.
-(* end hide *)
-
-Definition inv s k best_i curr_i :=
-  forall j, (j <= curr_i)%N ->
-    `|sumz (take best_i s) *+ 2 - k| <= `|sumz (take j s) *+ 2 - k|.
-
-Lemma loopP s1 s2 k best_i :
-  inv (s1 ++ s2) k best_i (size s1) ->
-  (best_i <= size s1)%N ->
-  inv (s1 ++ s2) k
-    (loop s2 best_i (size s1)
-      (sumz (take best_i (s1 ++ s2)) *+ 2 - k) (sumz s1 *+ 2 - k))
-    (size (s1 ++ s2)).
-(* begin hide *)
-Proof.
-elim: s2 s1 best_i=> [|n s2 IH] s1 best_i /=; first by rewrite cats0.
-rewrite -cat1s catA cats1 -(size_rcons s1 n).
-rewrite addrA -mulrnDl [n + _]addrC -sumz1 => best_iP bounds.
-set best    := sumz (take best_i (rcons s1 n ++ s2)) *+ 2 - _.
-set curr'   := sumz (rcons s1 n) *+ 2 - _.
-set best'   := if `|curr'| < `|best| then curr' else best.
-set best_i' := if `|curr'| < `|best| then size _ else best_i.
-have bounds': (best_i' <= size (rcons s1 n))%N.
-  rewrite /best_i'; case: ifP=> _ //.
-  by rewrite size_rcons; apply: leq_trans (leqnSn (size _)).
-have ->: best' = sumz (take best_i' (rcons s1 n ++ s2)) *+ 2 - k.
-  by rewrite /best' /best_i'; case: ifP=> _; rewrite // takel_cat // take_size.
-apply: IH=> // j jP; rewrite /best_i'; case: ltrP=> [found|not_found].
-  rewrite takel_cat // take_size.
-  case: ltngtP jP=> // [|<-]; last by rewrite takel_cat // take_size.
-  rewrite size_rcons => jP _; apply: ler_trans (ltrW found) _; exact: best_iP.
-case: ltngtP jP=> // [|<-].
-  by rewrite size_rcons => jP _; apply: best_iP.
-by rewrite [take (size _) _]takel_cat // ?take_size.
-Qed.
-(* end hide *)
-Theorem fulcrumP s : is_fulcrum s (fulcrum s).
-Proof.
-have base: inv ([::] ++ s) (sumz s) 0 (size (Nil int)) by case.
-have /= := loopP _ _ _ _ base (leq0n _).
-rewrite take0 [sumz [::]]/sumz big_nil add0r => endP j; rewrite !fvE.
-suff ->: take j s = take (minn j (size s)) s.
-  apply: endP; exact: geq_minr.
-case: (leqP j (size s))=> [/minn_idPl -> //|/ltnW s_j].
-by rewrite take_oversize // (minn_idPr s_j) take_size.
+rewrite /fulcrum; set st := foldl _ _ _.
+suff: fulcrum_inv s (size s) st.
+  case=> ????? iP j; rewrite [fv s j]fv_overflow; apply: iP.
+  exact: geq_minr.
+apply: foldlP=> {st}; first split=> //=.
+- by rewrite fvE [in RHS]big1 // add0r.
+- by rewrite fvE [in RHS]big1 // add0r.
+- move=> [|] //.
+move=> i [best_i _ _ _] [/= b1 b2 -> -> -> inv].
+have e: fv s i.+1 = s # i *+ 2 + fv s i.
+  rewrite !fvE addrA -mulrnDl; congr (_ *+ 2 - _).
+  rewrite [LHS](bigID (pred1 i)) /=; congr +%R.
+    apply/big_pred1=> /= j; rewrite inE andbC.
+    by case: eqP=> // ->; rewrite leqnn.
+  by apply/eq_bigl=> j; rewrite ltnS ltn_neqAle andbC.
+split=> //=.
+- by case: ifP=> //=; rewrite ltnS (valP i).
+- by case: ifP=> //; rewrite -ltnS ltnW.
+- by case: ifP.
+move=> j; case: ltngtP=> // [j_i|<-] _.
+  case: ifP=> [|_]; last exact: inv.
+  rewrite -e=> /ltrW iP; apply: ler_trans iP _; exact: inv.
+by case: ifP=> //; rewrite -e ltrNge => /negbFE ->.
 Qed.
 
 (** The algorithm presented here makes one small improvement over the #<a
