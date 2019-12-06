@@ -107,22 +107,6 @@ The last problem was also the most challenging.  The goal was to compute the
 _fulcrum_ of a sequence of integers [s], which is defined to be the index [i]
 that minimizes the quantity [fv s i] shown below. *)
 
-Lemma foldlP T S f (s : seq T) x0 (I : nat -> S -> Prop) :
-  I 0 x0 ->
-  (forall (i : 'I_(size s)) x,
-     I i x ->
-     I i.+1 (f x (tnth (in_tuple s) i))) ->
-  I (size s) (foldl f x0 s).
-Proof.
-rewrite -[s]cat0s [in foldl _ _ _]/= -[0]/(size (Nil T)).
-elim: s [::] x0=> [|a s2 IH] s1 x0; first by rewrite cats0.
-rewrite -cat1s catA cats1 => x0P inv /=; apply: IH=> //.
-have iP: size s1 < size (rcons s1 a ++ s2).
-  by rewrite size_cat size_rcons leq_addr.
-move: (inv (Sub (size s1) iP) _ x0P).
-by rewrite (tnth_nth a) /= nth_cat size_rcons leqnn nth_rcons ltnn eqxx.
-Qed.
-
 Section Fulcrum.
 
 Open Scope ring_scope.
@@ -132,7 +116,7 @@ Import GRing.Theory Num.Theory.
 Implicit Types (s : seq int) (n : int).
 
 Definition fv s i :=
-  \sum_(l < i) s`_l - \sum_(i <= l < size s) s`_l.
+  \sum_(0 <= l < i) s`_l - \sum_(i <= l < size s) s`_l.
 
 Definition is_fulcrum s i := forall j, `|fv s i| <= `|fv s j|.
 
@@ -144,17 +128,15 @@ functionality for us. *)
 Definition fulcrum_naive s :=
   [arg minr_(i < ord0 : 'I_(size s).+1) `|fv s i|].
 
-Lemma fvE s i : fv s i = (\sum_(l < i) s`_l) *+ 2 - \sum_(l < size s) s`_l.
+Lemma fvE s i :
+  fv s i = (\sum_(0 <= l < i) s`_l) *+ 2 - \sum_(0 <= l < size s) s`_l.
 (* begin hide *)
 Proof.
-suff: \sum_(l < size s) s`_l = \sum_(0 <= l < i) s`_l + \sum_(i <= l < size s) s`_l.
-  by rewrite !big_mkord => ->; rewrite opprD addrA mulr2n addrK.
-rewrite -[\sum_(l < size s) _](big_mkord predT) /=.
 case: (leqP i (size s))=> [i_s|/ltnW s_i].
-  exact: big_cat_nat.
-rewrite (big_geq s_i) addr0.
-rewrite (big_nat_widen _ _ _ _ _ s_i) /= big_mkcond /=.
-by apply/eq_bigr=> l _; case: ltnP=> // ?; rewrite nth_default.
+  by rewrite (big_cat_nat _ _ _ _ i_s) //= opprD addrA addrK.
+rewrite /fv (big_geq s_i) addr0 (big_cat_nat _ _ _ _ s_i) //=.
+rewrite [\sum_(size s <= l < i) s`_l]big1_seq ?addr0 ?mulr2n ?addrK //.
+by move=> /= l; rewrite mem_iota; case/andP=> ??; rewrite nth_default.
 Qed.
 (* end hide *)
 
@@ -162,7 +144,7 @@ Lemma fv_overflow s i : fv s i = fv s (minn i (size s)).
 Proof.
 rewrite !fvE; congr (_ *+ 2 - _).
 case: (leqP i (size s))=> [/minn_idPl -> //|/ltnW s_i].
-rewrite (minn_idPr s_i) (big_ord_widen _ _ s_i) [RHS]big_mkcond /=.
+rewrite (minn_idPr s_i) (big_nat_widen _ _ _ _ _ s_i) [RHS]big_mkcond /=.
 by apply/eq_bigr=> l; case: ltnP=> //= ? _; rewrite nth_default.
 Qed.
 
@@ -203,8 +185,24 @@ Definition fulcrum_body st n :=
   State best_i' curr_i' best' curr'.
 
 Definition fulcrum s :=
-  let k := - \sum_(n <- s) n in
+  let k := - \sum_(0 <= l < size s) s`_l in
   (foldl fulcrum_body (State 0 0 k k) s).(best_i).
+
+Lemma foldlP T S f (s : seq T) x0 (I : nat -> S -> Prop) :
+  I 0%N x0 ->
+  (forall (i : 'I_(size s)) x,
+     I i x ->
+     I i.+1 (f x (tnth (in_tuple s) i))) ->
+  I (size s) (foldl f x0 s).
+Proof.
+rewrite -[s]cat0s [in foldl _ _ _]/= -[0%N]/(size (Nil T)).
+elim: s [::] x0=> [|a s2 IH] s1 x0; first by rewrite cats0.
+rewrite -cat1s catA cats1 => x0P inv /=; apply: IH=> //.
+have iP: (size s1 < size (rcons s1 a ++ s2))%N.
+  by rewrite size_cat size_rcons leq_addr.
+move: (inv (Sub (size s1) iP) _ x0P).
+by rewrite (tnth_nth a) /= nth_cat size_rcons leqnn nth_rcons ltnn eqxx.
+Qed.
 
 Lemma fulcrumP s : is_fulcrum s (fulcrum s).
 Proof.
@@ -213,12 +211,12 @@ suff: fulcrum_inv s (size s) st.
   case=> ????? iP j; rewrite [fv s j]fv_overflow; apply: iP.
   exact: geq_minr.
 apply: foldlP=> {st}; first split=> //=.
-- by rewrite fvE big_ord0 add0r !(big_nth 0) big_mkord.
-- by rewrite fvE big_ord0 add0r !(big_nth 0) big_mkord.
+- by rewrite fvE [in RHS]big_geq // add0r.
+- by rewrite fvE [in RHS]big_geq // add0r.
 - move=> [|] //.
 move=> i [best_i _ _ _] [/= b1 b2 -> -> -> inv].
 have e: fv s i.+1 = s`_i *+ 2 + fv s i.
-  by rewrite !fvE big_ord_recr /= [_ + s`_i]addrC mulrnDl addrA.
+  by rewrite !fvE big_nat_recr //= [_ + s`_i]addrC mulrnDl addrA.
 split=> //=; rewrite ?(tnth_nth 0) //=.
 - by case: ifP=> //=; rewrite ltnS (valP i).
 - by case: ifP=> //; rewrite -ltnS ltnW.
