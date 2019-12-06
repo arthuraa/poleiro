@@ -131,11 +131,8 @@ Import GRing.Theory Num.Theory.
 (* end hide *)
 Implicit Types (s : seq int) (n : int).
 
-Local Notation "s # j" := (tnth (in_tuple s) j) (at level 30).
-
 Definition fv s i :=
-  \sum_(l < size s | (l <  i)%N) s # l -
-  \sum_(l < size s | (i <= l)%N) s # l.
+  \sum_(l < i) s`_l - \sum_(i <= l < size s) s`_l.
 
 Definition is_fulcrum s i := forall j, `|fv s i| <= `|fv s j|.
 
@@ -147,21 +144,26 @@ functionality for us. *)
 Definition fulcrum_naive s :=
   [arg minr_(i < ord0 : 'I_(size s).+1) `|fv s i|].
 
-Lemma fvE s i :
-  fv s i = (\sum_(j < size s | (j < i)%N) s # j) *+ 2 - \sum_(n <- s) n.
+Lemma fvE s i : fv s i = (\sum_(l < i) s`_l) *+ 2 - \sum_(l < size s) s`_l.
 (* begin hide *)
 Proof.
-rewrite /fv big_tnth.
-rewrite [\sum_(j < size s) _](bigID (fun j : 'I__ => (j < i)%N)) /=.
-rewrite opprD addrA mulr2n addrK; congr (_ - _); apply/eq_bigl=> j.
-by rewrite leqNgt.
+suff: \sum_(l < size s) s`_l = \sum_(0 <= l < i) s`_l + \sum_(i <= l < size s) s`_l.
+  by rewrite !big_mkord => ->; rewrite opprD addrA mulr2n addrK.
+rewrite -[\sum_(l < size s) _](big_mkord predT) /=.
+case: (leqP i (size s))=> [i_s|/ltnW s_i].
+  exact: big_cat_nat.
+rewrite (big_geq s_i) addr0.
+rewrite (big_nat_widen _ _ _ _ _ s_i) /= big_mkcond /=.
+by apply/eq_bigr=> l _; case: ltnP=> // ?; rewrite nth_default.
 Qed.
 (* end hide *)
 
 Lemma fv_overflow s i : fv s i = fv s (minn i (size s)).
 Proof.
 rewrite !fvE; congr (_ *+ 2 - _).
-by apply: eq_bigl=> l; rewrite leq_min (valP l) andbT.
+case: (leqP i (size s))=> [/minn_idPl -> //|/ltnW s_i].
+rewrite (minn_idPr s_i) (big_ord_widen _ _ s_i) [RHS]big_mkcond /=.
+by apply/eq_bigr=> l; case: ltnP=> //= ? _; rewrite nth_default.
 Qed.
 
 Lemma fulcrum_naiveP s : is_fulcrum s (fulcrum_naive s).
@@ -211,17 +213,13 @@ suff: fulcrum_inv s (size s) st.
   case=> ????? iP j; rewrite [fv s j]fv_overflow; apply: iP.
   exact: geq_minr.
 apply: foldlP=> {st}; first split=> //=.
-- by rewrite fvE [in RHS]big1 // add0r.
-- by rewrite fvE [in RHS]big1 // add0r.
+- by rewrite fvE big_ord0 add0r !(big_nth 0) big_mkord.
+- by rewrite fvE big_ord0 add0r !(big_nth 0) big_mkord.
 - move=> [|] //.
 move=> i [best_i _ _ _] [/= b1 b2 -> -> -> inv].
-have e: fv s i.+1 = s # i *+ 2 + fv s i.
-  rewrite !fvE addrA -mulrnDl; congr (_ *+ 2 - _).
-  rewrite [LHS](bigID (pred1 i)) /=; congr +%R.
-    apply/big_pred1=> /= j; rewrite inE andbC.
-    by case: eqP=> // ->; rewrite leqnn.
-  by apply/eq_bigl=> j; rewrite ltnS ltn_neqAle andbC.
-split=> //=.
+have e: fv s i.+1 = s`_i *+ 2 + fv s i.
+  by rewrite !fvE big_ord_recr /= [_ + s`_i]addrC mulrnDl addrA.
+split=> //=; rewrite ?(tnth_nth 0) //=.
 - by case: ifP=> //=; rewrite ltnS (valP i).
 - by case: ifP=> //; rewrite -ltnS ltnW.
 - by case: ifP.
