@@ -209,13 +209,12 @@ Qed.
 (* end hide *)
 
 (** We complete the proof by instantiating [foldlP] with the [fulcrum_inv]
-predicate below, which guarantees, among other things, that [best_i] the fulcrum
-value with respect to the first [i] positions of the sequence [s].  Hence, when
-the loop terminates, we know that [best_i] is the fulcrum for all of [s].  *)
+predicate below, which guarantees, among other things, that [best_i] holds the
+fulcrum for the first [i] positions of the sequence [s].  Hence, when the loop
+terminates, we know that [best_i] is the fulcrum for all of [s].  *)
 
 Variant fulcrum_inv s i st : Prop :=
 | FlucrumInv of
- (st.(best_i) <  (size s).+1)%N   &
  (st.(best_i) <= i)%N             &
   st.(curr_i) =  i                &
   st.(best)   =  fv s st.(best_i) &
@@ -227,10 +226,10 @@ Proof.
 rewrite /fulcrum; have ->: - foldl +%R 0 s = fv s 0.
   by rewrite /fv big_geq // (foldl_idx [law of +%R]) (big_nth 0) add0r.
 set st := foldl _ _ _; suff: fulcrum_inv s (size s) st.
-  case=> ????? iP j; rewrite [fv s j]fv_overflow; apply: iP.
+  case=> ???? iP j; rewrite [fv s j]fv_overflow; apply: iP.
   exact: geq_minr.
 apply: foldlP=> {st}; first by split=> //=; case.
-move=> i [_ best_i _ _] a iP [/= b1 b2 -> -> -> inv].
+move=> i [_ best_i _ _] a iP [/= bP -> -> -> inv].
 rewrite (set_nth_default 0 a iP) {a}.
 have e: fv s i.+1 = s`_i *+ 2 + fv s i.
   by rewrite !fvE big_nat_recr //= [_ + s`_i]addrC mulrnDl addrA.
