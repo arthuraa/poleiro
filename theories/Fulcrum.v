@@ -32,11 +32,11 @@ needs to be added, and appends that sequence to [s].  Note that subtraction is
 truncated: [n - size s] is equal to 0 when [n <= size s].
 
 As the specification for [left_pad], I am taking the properties that were
-verified in the #<a href="https://rise4fun.com/Dafny/nbNTl">Dafny solution</a>#
-in Hillel's post.  The proofs are not automated like in Dafny, but still fairly
-easy.  (The statements are slightly different because they use the [nth]
-function to index into a sequence, which requires a default element to return
-when the index overflows.) *)
+verified in the #<a href="https://rise4fun.com/Dafny/nbNTl">original
+solution</a># in Hillel's post, which was written in Dafny.  My proofs are not
+automated like in Dafny, but still fairly easy.  (The statements are slightly
+different because they use the [nth] function to index into a sequence, which
+requires a default element to return when the index overflows.) *)
 
 Lemma left_pad1 c n s : size (left_pad c n s) = maxn n (size s).
 Proof.
@@ -155,13 +155,12 @@ by rewrite inordK ?ltnS ?geq_minr //.
 Qed.
 
 (** Unfortunately, this naive implementation runs in quadratic time, and the
-problem asked for a _linear_ solution.  The issue is that computing [fv s i]
-from scratch takes time proportional to the size of [s].
-
-We can do better by folding over [s] and computing the values of [fv s i]
-incrementally.  With a left fold, the computation does not need any auxiliary
-stack space, because the tail call is optimized.  The accumulator of the fold
-contains four state variables, defined in the [state] type below. *)
+problem asked for a _linear_ solution.  We can do better by folding over [s] and
+computing the values of [fv s i] incrementally.  With a left fold, we can
+compute the fulcrum with four auxiliary variables defined in the [state] type
+below, without the need for extra stack space.  (This is a bit more efficient
+than the #<a href="https://rise4fun.com/Dafny/UD9n">original solution</a>#,
+which had to store two sequences of partial sums.)*)
 
 Record state := State {
   curr_i : nat; (* The current position in the list *)
@@ -183,7 +182,7 @@ Definition fulcrum_body st n :=
   State curr_i' best_i' curr' best'.
 
 Definition fulcrum s :=
-  let k := fv s 0 in
+  let k := - foldl +%R 0 s in
   (foldl fulcrum_body (State 0 0 k k) s).(best_i).
 
 (** To verify [fulcrum], we first prove a lemma about [foldl].  It says that we
@@ -191,15 +190,11 @@ can prove that some property [I] holds of the final loop state by showing that
 it holds of the initial state [x0] and that it is preserved on every iteration
 -- in other words, that [I] is a _loop invariant_.  The property is
 parameterized by the current iteration number [i], which serves as ghost state
-for verifying the loop.  Note that the second hypothesis, which says that [I] is
-preserved by one iteration, uses the *)
+for verifying the loop.   *)
 
 Lemma foldlP T S f (s : seq T) x0 (I : nat -> S -> Prop) :
   I 0%N x0 ->
-  (forall i x a,
-    (i < size s)%N ->
-     I i x ->
-     I i.+1 (f x (nth a s i))) ->
+  (forall i x a, (i < size s)%N -> I i x -> I i.+1 (f x (nth a s i))) ->
   I (size s) (foldl f x0 s).
 (* begin hide *)
 Proof.
@@ -213,6 +208,11 @@ by rewrite nth_cat size_rcons leqnn nth_rcons ltnn eqxx.
 Qed.
 (* end hide *)
 
+(** We complete the proof by instantiating [foldlP] with the [fulcrum_inv]
+predicate below, which guarantees, among other things, that [best_i] the fulcrum
+value with respect to the first [i] positions of the sequence [s].  Hence, when
+the loop terminates, we know that [best_i] is the fulcrum for all of [s].  *)
+
 Variant fulcrum_inv s i st : Prop :=
 | FlucrumInv of
  (st.(best_i) <  (size s).+1)%N   &
@@ -224,8 +224,9 @@ Variant fulcrum_inv s i st : Prop :=
 
 Lemma fulcrumP s : is_fulcrum s (fulcrum s).
 Proof.
-rewrite /fulcrum; set st := foldl _ _ _.
-suff: fulcrum_inv s (size s) st.
+rewrite /fulcrum; have ->: - foldl +%R 0 s = fv s 0.
+  by rewrite /fv big_geq // (foldl_idx [law of +%R]) (big_nth 0) add0r.
+set st := foldl _ _ _; suff: fulcrum_inv s (size s) st.
   case=> ????? iP j; rewrite [fv s j]fv_overflow; apply: iP.
   exact: geq_minr.
 apply: foldlP=> {st}; first by split=> //=; case.
@@ -239,12 +240,6 @@ move=> j; case: ltngtP=> // [j_i|<-] _.
   rewrite -e=> /ltrW {}iP; apply: ler_trans iP _; exact: inv.
 by case: ifP=> //; rewrite -e ltrNge => /negbFE ->.
 Qed.
-
-(** The algorithm presented here makes one small improvement over the #<a
-href="https://rise4fun.com/Dafny/UD9n">Dafny solution</a>#: it uses constant
-auxiliary memory, whereas the original program used intermediate arrays to store
-the values of [sumz (take i s)] and [sumz (drop i s)].  It would be interesting
-to try to translate this algorithm back into Dafny.  *)
 (* begin hide *)
 End Fulcrum.
 (* end hide *)
@@ -254,23 +249,19 @@ So, is functional really better than imperative for verification?  Though I am a
 fan of functional languages, I will not attempt to offer a definitive answer.
 It is true that simple programs such as [left_pad] are often as good (or better)
 than their specifications, but some of those would be inefficient in practice,
-and fast implementations might be tricky to verify.
+and fast implementations such as [fulcrum] might be tricky to verify.
 
 As mentioned in Hillel's post, the main issue when verifying imperative code is
 aliasing: we must argue that every call preserves the assumptions made in other
 parts of the code, something that comes for free with functional programming.
 However, if a program only modifies local state (like the Dafny solutions did),
-this kind of interference becomes much more manageable.
+reasoning about this kind of interference becomes much more manageable.
 
 Of course, nothing prevents us from combining the benefits of functional and
 imperative programming.  We can implement an efficient algorithm using mutable
-state and verify it against a specification that mixes logic and pure code.
-Most of the Dafny solution was spent on writing and verifying purely functional
-code used in its specification -- indeed, many frameworks for verifying
-imperative code only allow pure code in specifications.
-
-In the end, what seems to matter the most is how rich of a specification
-language you have, how convenient it is for reasoning, and how much automation
-it provides.
-
-*)
+state and verify it against a specification that mixes logic and pure functions.
+Indeed, that is the strategy followed by the Dafny solution, and many frameworks
+for verifying imperative code only allow pure functions in specifications.
+Moreover, it is possible to define imperative languages within Coq and use the
+logic to verify programs in this language; this is the essence of frameworks
+such as VST or Iris. *)
