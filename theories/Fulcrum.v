@@ -1,23 +1,22 @@
 (* begin hide *)
 From mathcomp Require Import ssreflect ssrfun ssrbool ssrnat eqtype seq.
-From mathcomp Require Import fintype bigop ssralg ssrnum ssrint tuple.
+From mathcomp Require Import fintype bigop ssralg ssrnum ssrint.
 (* end hide *)
-(** Hillel Wayne #<a
-href="https://www.hillelwayne.com/post/theorem-prover-showdown/">posted a
-challenge</a># to compare different verification methods: are functional
-programs really easier to verify than imperative ones, as some claim?  There
-were three problems in the challenge, and I am posting Coq solutions here (two
-of them by myself).
+(** Hillel Wayne posted a #<a
+href="https://www.hillelwayne.com/post/theorem-prover-showdown/">challenge</a>#
+to compare programs for ease of verification: are functional programs really
+easier to verify than imperative ones, as some claim?  The challenge comprised
+three problems, and I am posting Coq solutions here (two of them by myself).
 
 
 ** Padding
 
 The first challenge was to prove the correctness of a padding function.  Given a
 padding character [c], a length [n] and a sequence [s], [left_pad c n s] should
-return the result of adding copies of [c] at the beginning of [s] until the size
-reaches [n].  If the original string is larger than [n], the function should do
-nothing.  My implementation is similar to other solutions on the web, and reuses
-functions and lemmas available in the Math Comp libraries.  *)
+pad [s] with [c] on the left until its size reaches [n].  If the original string
+is larger than [n], the function should do nothing.  My implementation is
+similar to other solutions on the web, and reuses functions and lemmas available
+in the Math Comp libraries.  *)
 (* begin hide *)
 Section LeftPad.
 
@@ -86,9 +85,10 @@ End LeftPad.
 (** ** Unique
 
 The second problem of the challenge asked to remove all duplicate elements from
-a sequence.  I decided not to include a solution of my own here, since it is #<a
+a sequence.  I decided not to include a solution of my own here, since the Math
+Comp library #<a
 href="https://math-comp.github.io/htmldoc/mathcomp.ssreflect.seq.html#undup">already
-done in Math Comp</a># under the name [undup].  We had to show that the set of
+provides</a># a function [undup] that does this.  We had to show that the set of
 elements in its output is the same as in its input, and that no element occurs
 twice, properties that are both proved in Math Comp ([mem_undup] and
 [undup_uniq]).  Hillel wrote that imperative programs had an advantage for this
@@ -104,7 +104,7 @@ this respect as well.)
 The last problem was also the most challenging.  The goal was to compute the
 _fulcrum_ of a sequence of integers [s], which is defined as the index [i] that
 minimizes the quantity [fv s i] shown below. *)
-
+(* begin hide *)
 Section Fulcrum.
 
 Open Scope ring_scope.
@@ -189,8 +189,8 @@ Definition fulcrum s :=
 can prove that some property [I] holds of the final loop state by showing that
 it holds of the initial state [x0] and that it is preserved on every iteration
 -- in other words, that [I] is a _loop invariant_.  The property is
-parameterized by the current iteration number [i], which serves as ghost state
-for verifying the loop.   *)
+parameterized by a "ghost variable" [i], which counts the number of iterations
+performed.  *)
 
 Lemma foldlP T S f (s : seq T) x0 (I : nat -> S -> Prop) :
   I 0%N x0 ->
@@ -209,9 +209,9 @@ Qed.
 (* end hide *)
 
 (** We complete the proof by instantiating [foldlP] with the [fulcrum_inv]
-predicate below, which guarantees, among other things, that [best_i] holds the
-fulcrum for the first [i] positions of the sequence [s].  Hence, when the loop
-terminates, we know that [best_i] is the fulcrum for all of [s].  *)
+predicate below.  This predicate ensures, among other things, that [best_i]
+holds the fulcrum for the first [i] positions of the sequence [s].  Hence, when
+the loop terminates, we know that [best_i] is the fulcrum for all of [s].  *)
 
 Variant fulcrum_inv s i st : Prop :=
 | FlucrumInv of
