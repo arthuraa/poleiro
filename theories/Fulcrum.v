@@ -79,9 +79,7 @@ Qed.
 verification, since the code serves as its own specification.  Though exaggerate
 (as we will see in the last problem), the claim does have a certain appeal: the
 definition of [left_pad] is shorter and more direct than the specification that
-we proved.  Whether it is also easier to understand is a matter of personal
-opinion; at the very least, we must know what what [nseq], [++] and [size] are.
-*)
+we proved. *)
 (* begin hide *)
 End LeftPad.
 (* end hide *)
@@ -104,8 +102,8 @@ this respect as well.)
 ** Fulcrum
 
 The last problem was also the most challenging.  The goal was to compute the
-_fulcrum_ of a sequence of integers [s], which is defined to be the index [i]
-that minimizes the quantity [fv s i] shown below. *)
+_fulcrum_ of a sequence of integers [s], which is defined as the index [i] that
+minimizes the quantity [fv s i] shown below. *)
 
 Section Fulcrum.
 
@@ -120,10 +118,10 @@ Definition fv s i :=
 
 Definition is_fulcrum s i := forall j, `|fv s i| <= `|fv s j|.
 
-(** It would be easy to write another functional program that is obviously
-correct in this case: just compute [fv s i] for all indices [i] and return the
-index that yields the smallest value.  Indeed, Math Comp already provides this
-functionality for us. *)
+(** The simplest way out would be to compute [fv s i] for all indices [i] and
+return the index that yields the smallest value.  Instead of writing this
+program ourselves, we can just reuse the [arg min] function available in Math
+Comp. *)
 
 Definition fulcrum_naive s :=
   [arg minr_(i < ord0 : 'I_(size s).+1) `|fv s i|].
@@ -139,15 +137,15 @@ rewrite [\sum_(size s <= l < i) s`_l]big1_seq ?addr0 ?mulr2n ?addrK //.
 by move=> /= l; rewrite mem_iota; case/andP=> ??; rewrite nth_default.
 Qed.
 (* end hide *)
-
 Lemma fv_overflow s i : fv s i = fv s (minn i (size s)).
+(* begin hide *)
 Proof.
 rewrite !fvE; congr (_ *+ 2 - _).
 case: (leqP i (size s))=> [/minn_idPl -> //|/ltnW s_i].
 rewrite (minn_idPr s_i) (big_nat_widen _ _ _ _ _ s_i) [RHS]big_mkcond /=.
 by apply/eq_bigr=> l; case: ltnP=> //= ? _; rewrite nth_default.
 Qed.
-
+(* end hide*)
 Lemma fulcrum_naiveP s : is_fulcrum s (fulcrum_naive s).
 Proof.
 rewrite /fulcrum_naive; case: arg_minrP=> //= i _ iP j.
@@ -156,17 +154,64 @@ rewrite (_ : fv s (inord _) = fv s j) //= [RHS]fv_overflow.
 by rewrite inordK ?ltnS ?geq_minr //.
 Qed.
 
-(** Unfortunately, this would run in quadratic time, and the problem asked for a
-_linear_ solution.  We can do better by computing the values of [fv s i]
-incrementally, as in dynamic programming.  We begin by recasting [fv] in a more
-convenient form.  *)
+(** Unfortunately, this naive implementation runs in quadratic time, and the
+problem asked for a _linear_ solution.  The issue is that computing [fv s i]
+from scratch takes time proportional to the size of [s].
+
+We can do better by folding over [s] and computing the values of [fv s i]
+incrementally.  With a left fold, the computation does not need any auxiliary
+stack space, because the tail call is optimized.  The accumulator of the fold
+contains four state variables, defined in the [state] type below. *)
 
 Record state := State {
-  best_i : nat;
-  curr_i : nat;
-  best   : int;
-  curr   : int;
+  curr_i : nat; (* The current position in the list *)
+  best_i : nat; (* The best fulcrum found so far    *)
+  curr   : int; (* = fv s curr_i                    *)
+  best   : int; (* = fv s best_i                    *)
 }.
+
+(** On each iteration, the [fulcrum_body] function updates the state [st] given
+[n], the current element of the sequence.  The main function, [fulcrum], just
+needs to provide a suitable initial state and return the final value of
+[best_i]. *)
+
+Definition fulcrum_body st n :=
+  let curr'   := n *+ 2 + st.(curr)  in
+  let curr_i' := st.(curr_i).+1 in
+  let best'   := if `|curr'| < `|st.(best)| then curr'   else st.(best)   in
+  let best_i' := if `|curr'| < `|st.(best)| then curr_i' else st.(best_i) in
+  State curr_i' best_i' curr' best'.
+
+Definition fulcrum s :=
+  let k := fv s 0 in
+  (foldl fulcrum_body (State 0 0 k k) s).(best_i).
+
+(** To verify [fulcrum], we first prove a lemma about [foldl].  It says that we
+can prove that some property [I] holds of the final loop state by showing that
+it holds of the initial state [x0] and that it is preserved on every iteration
+-- in other words, that [I] is a _loop invariant_.  The property is
+parameterized by the current iteration number [i], which serves as ghost state
+for verifying the loop.  Note that the second hypothesis, which says that [I] is
+preserved by one iteration, uses the *)
+
+Lemma foldlP T S f (s : seq T) x0 (I : nat -> S -> Prop) :
+  I 0%N x0 ->
+  (forall i x a,
+    (i < size s)%N ->
+     I i x ->
+     I i.+1 (f x (nth a s i))) ->
+  I (size s) (foldl f x0 s).
+(* begin hide *)
+Proof.
+rewrite -[s]cat0s [in foldl _ _ _]/= -[0%N]/(size (Nil T)).
+elim: s [::] x0=> [|a s2 IH] s1 x0; first by rewrite cats0.
+rewrite -cat1s catA cats1 => x0P inv /=; apply: IH=> //.
+have iP: (size s1 < size (rcons s1 a ++ s2))%N.
+  by rewrite size_cat size_rcons leq_addr.
+move: (inv (size s1) _ a iP x0P).
+by rewrite nth_cat size_rcons leqnn nth_rcons ltnn eqxx.
+Qed.
+(* end hide *)
 
 Variant fulcrum_inv s i st : Prop :=
 | FlucrumInv of
@@ -177,53 +222,21 @@ Variant fulcrum_inv s i st : Prop :=
   st.(curr)   =  fv s i           &
   (forall j, (j <= i)%N -> `|fv s st.(best_i)| <= `|fv s j|).
 
-Definition fulcrum_body st n :=
-  let curr'   := n *+ 2 + st.(curr)  in
-  let curr_i' := st.(curr_i).+1 in
-  let best'   := if `|curr'| < `|st.(best)| then curr'   else st.(best)   in
-  let best_i' := if `|curr'| < `|st.(best)| then curr_i' else st.(best_i) in
-  State best_i' curr_i' best' curr'.
-
-Definition fulcrum s :=
-  let k := - \sum_(0 <= l < size s) s`_l in
-  (foldl fulcrum_body (State 0 0 k k) s).(best_i).
-
-Lemma foldlP T S f (s : seq T) x0 (I : nat -> S -> Prop) :
-  I 0%N x0 ->
-  (forall (i : 'I_(size s)) x,
-     I i x ->
-     I i.+1 (f x (tnth (in_tuple s) i))) ->
-  I (size s) (foldl f x0 s).
-Proof.
-rewrite -[s]cat0s [in foldl _ _ _]/= -[0%N]/(size (Nil T)).
-elim: s [::] x0=> [|a s2 IH] s1 x0; first by rewrite cats0.
-rewrite -cat1s catA cats1 => x0P inv /=; apply: IH=> //.
-have iP: (size s1 < size (rcons s1 a ++ s2))%N.
-  by rewrite size_cat size_rcons leq_addr.
-move: (inv (Sub (size s1) iP) _ x0P).
-by rewrite (tnth_nth a) /= nth_cat size_rcons leqnn nth_rcons ltnn eqxx.
-Qed.
-
 Lemma fulcrumP s : is_fulcrum s (fulcrum s).
 Proof.
 rewrite /fulcrum; set st := foldl _ _ _.
 suff: fulcrum_inv s (size s) st.
   case=> ????? iP j; rewrite [fv s j]fv_overflow; apply: iP.
   exact: geq_minr.
-apply: foldlP=> {st}; first split=> //=.
-- by rewrite fvE [in RHS]big_geq // add0r.
-- by rewrite fvE [in RHS]big_geq // add0r.
-- move=> [|] //.
-move=> i [best_i _ _ _] [/= b1 b2 -> -> -> inv].
+apply: foldlP=> {st}; first by split=> //=; case.
+move=> i [_ best_i _ _] a iP [/= b1 b2 -> -> -> inv].
+rewrite (set_nth_default 0 a iP) {a}.
 have e: fv s i.+1 = s`_i *+ 2 + fv s i.
   by rewrite !fvE big_nat_recr //= [_ + s`_i]addrC mulrnDl addrA.
-split=> //=; rewrite ?(tnth_nth 0) //=.
-- by case: ifP=> //=; rewrite ltnS (valP i).
-- by case: ifP=> //; rewrite -ltnS ltnW.
-- by case: ifP.
+split=> //=; do 1?[by case: ifP; rewrite // -ltnS ltnW].
 move=> j; case: ltngtP=> // [j_i|<-] _.
   case: ifP=> [|_]; last exact: inv.
-  rewrite -e=> /ltrW iP; apply: ler_trans iP _; exact: inv.
+  rewrite -e=> /ltrW {}iP; apply: ler_trans iP _; exact: inv.
 by case: ifP=> //; rewrite -e ltrNge => /negbFE ->.
 Qed.
 
