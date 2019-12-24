@@ -4,9 +4,9 @@ From mathcomp Require Import fintype bigop ssralg ssrnum ssrint.
 (* end hide *)
 (** Hillel Wayne posted a #<a
 href="https://www.hillelwayne.com/post/theorem-prover-showdown/">challenge</a>#
-to compare programs for ease of verification: are functional programs really
-easier to verify than imperative ones, as some claim?  The challenge comprised
-three problems, and I am posting Coq solutions here (two of them by myself).
+to find out whether functional programs are really easier to verify than
+imperative ones, as some claim.  There were three problems, and I am posting Coq
+solutions here (two of them by myself).
 
 
 ** Padding
@@ -103,7 +103,7 @@ this respect as well.)
 
 The last problem was also the most challenging.  The goal was to compute the
 _fulcrum_ of a sequence of integers [s], which is defined as the index [i] that
-minimizes the quantity [fv s i] shown below. *)
+minimizes the quantity [fv s i] shown below in absolute value. *)
 (* begin hide *)
 Section Fulcrum.
 
@@ -263,4 +263,5 @@ Indeed, that is the strategy followed by the Dafny solution, and many frameworks
 for verifying imperative code only allow pure functions in specifications.
 Moreover, it is possible to define imperative languages within Coq and use the
 logic to verify programs in this language; this is the essence of frameworks
-such as VST or Iris. *)
+such as #<a href="https://vst.cs.princeton.edu/">VST</a># or #<a
+href="https://iris-project.org/">Iris</a>#. *)
