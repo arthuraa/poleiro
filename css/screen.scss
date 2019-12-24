@@ -40,7 +40,6 @@ body {
         color: $text-color;
         a {
             @include unstyled-link;
-            &:visited { color: inherit; }
         }
     }
 
@@ -101,7 +100,7 @@ nav {
         font-family: $headings-font;
         font-size: 1.75em;
         a.comments {
-            color: inherit;
+            color: $text-color;
         }
         a.github {
             @include float-right;
@@ -114,6 +113,9 @@ nav {
     h1 {
         font-size: $title-size;
         margin-bottom: 20px;
+        a {
+            @include link-colors($text-color,$text-color,$text-color,$text-color,$text-color);
+        }
     }
     h2 {
         font-size : $heading-size-ratio * $title-size;
