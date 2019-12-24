@@ -87,7 +87,7 @@ End LeftPad.
 The second problem of the challenge asked to remove all duplicate elements from
 a sequence.  I decided not to include a solution of my own here, since the Math
 Comp library #<a
-href="https://math-comp.github.io/htmldoc/mathcomp.ssreflect.seq.html#undup">already
+href="https://math-comp.github.io/htmldoc/mathcomp.ssreflect.seq.html##undup">already
 provides</a># a function [undup] that does this.  We had to show that the set of
 elements in its output is the same as in its input, and that no element occurs
 twice, properties that are both proved in Math Comp ([mem_undup] and
