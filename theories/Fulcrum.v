@@ -137,6 +137,7 @@ rewrite [\sum_(size s <= l < i) s`_l]big1_seq ?addr0 ?mulr2n ?addrK //.
 by move=> /= l; rewrite mem_iota; case/andP=> ??; rewrite nth_default.
 Qed.
 (* end hide *)
+
 Lemma fv_overflow s i : fv s i = fv s (minn i (size s)).
 (* begin hide *)
 Proof.
@@ -146,6 +147,7 @@ rewrite (minn_idPr s_i) (big_nat_widen _ _ _ _ _ s_i) [RHS]big_mkcond /=.
 by apply/eq_bigr=> l; case: ltnP=> //= ? _; rewrite nth_default.
 Qed.
 (* end hide*)
+
 Lemma fulcrum_naiveP s : is_fulcrum s (fulcrum_naive s).
 Proof.
 rewrite /fulcrum_naive; case: arg_minrP=> //= i _ iP j.
