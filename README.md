@@ -5,8 +5,8 @@ posts at http://poleiro.info.
 
 ## Build requirements
 
-- Coq (tested with 8.9.1)
-- The [Ssreflect and Mathematical Components][2] libraries (tested with 1.9.0)
+- Coq (tested with 8.13)
+- The [Ssreflect and Mathematical Components][2] libraries (tested with 1.12.0)
 - [Hakyll][3] (tested with version 4.12.4.0)
 - [Sass][4] and [Compass][5]
 

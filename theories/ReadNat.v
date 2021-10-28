@@ -2,7 +2,7 @@
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import Coq.Numbers.Natural.Peano.NPeano.
-Require Import Omega.
+Require Import Lia.
 (* end hide *)
 (** Many programming languages have built-in support for string
     processing. Coq is no exception. The standard library provides us
@@ -134,7 +134,7 @@ Proof.
 
   repeat match goal with
           | n : nat |- _ =>
-            destruct n; [reflexivity|try omega]
+            destruct n; [reflexivity|try lia]
          end.
 
 Qed.
@@ -258,9 +258,9 @@ Qed.
 Lemma div_10_le : forall n time,
   n <= S time -> n / 10 <= time.
 Proof.
-  intros [|n] time H. simpl. omega.
-  assert (S n / 10 < S n); try omega.
-  apply Nat.div_lt; omega.
+  intros [|n] time H. simpl. lia.
+  assert (S n / 10 < S n); try lia.
+  apply Nat.div_lt; lia.
 Qed.
 
 (** We can proceed with our proof. *)
@@ -294,10 +294,10 @@ Proof.
     (* Finally, we need the digitToNatNatToDigitMod lemma to show that
        readNatAux doesn't fail, and the div_mod theorem (defined in the
        standard library) to express n in terms of (n / 10) and (n mod 10).
-       omega and congruence can easily take care of the end. *)
+       lia and congruence can easily take care of the end. *)
 
     try rewrite digitToNatNatToDigitMod;
-    try rewrite (div_mod n 10) at 2; try omega;
+    try rewrite (div_mod n 10) at 2; try lia;
     congruence.
 
 Qed.

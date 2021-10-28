@@ -190,7 +190,7 @@ Proof.
 rewrite monomsE /normalize /=; elim: (monoms e)=> [|m ms IH] /=.
   by rewrite big_nil.
 rewrite 2!big_cons IH; congr addn.
-by apply/eq_big_perm; rewrite perm_eq_sym perm_sort.
+by apply/perm_big; rewrite perm_sym perm_sort.
 Qed.
 
 Definition expr_eq e1 e2 := perm_eq (normalize e1) (normalize e2).
@@ -198,7 +198,7 @@ Definition expr_eq e1 e2 := perm_eq (normalize e1) (normalize e2).
 Lemma expr_eqP vals e1 e2 :
   expr_eq e1 e2 ->
   nat_of_expr vals e1 = nat_of_expr vals e2.
-Proof. rewrite 2!normalizeE; exact/eq_big_perm. Qed.
+Proof. rewrite 2!normalizeE; exact/perm_big. Qed.
 
 (** To see how this lemma works, let's revisit our original
 example. Here's a new proof that uses [expr_eqP]: *)

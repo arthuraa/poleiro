@@ -16,11 +16,16 @@ compass =
   getResourceString >>=
   withItemBody (unixFilter "sass" ["-s", "--scss", "--compass"])
 
+-- FIXME: Figure out what is going on with undo-batch-mode
+coqOptions :: [String]
+coqOptions = [ "-R", "theories", "Poleiro"
+             , "-w", "-notation-overridden,-undo-batch-mode,-ambiguous-paths" ]
+
 coqdoc :: Compiler (Item String)
 coqdoc = do
   coqFileName <- toFilePath <$> getUnderlying
   unsafeCompiler $
-    readProcess "coqc" [ "-R", "theories", "Poleiro", coqFileName ] ""
+    readProcess "coqc" (coqOptions ++ [ coqFileName ]) ""
   body <- unsafeCompiler $
           readProcess "coqdoc" [ "--no-index"
                                , "--stdout"

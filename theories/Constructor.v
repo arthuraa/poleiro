@@ -165,7 +165,7 @@ it deserves!
 In this case, it would have also been possible to prove our theorem by
 adding the constructors of [appears] to the [auto] hint database. *)
 
-Hint Constructors appears.
+Hint Constructors appears : core.
 
 Theorem insertAppears' : forall a t, appears a (insert a t).
 Proof.

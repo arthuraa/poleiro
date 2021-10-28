@@ -1,7 +1,7 @@
 (* begin hide *)
 Require Import Coq.Arith.Arith.
 Require Import Coq.Lists.List.
-Require Import Omega.
+Require Import Lia.
 Require Import Psatz.
 Import ListNotations.
 (* end hide *)
@@ -100,16 +100,16 @@ Lemma linear_winning lower range :
 Proof.
   generalize dependent lower.
   induction range as [|range IH]; intros lower target WIN; simpl.
-  - assert (lower = target) by omega. subst lower.
+  - assert (lower = target) by lia. subst lower.
     now rewrite <- beq_nat_refl.
   - destruct (leb target lower) eqn:E.
     + apply leb_iff in E.
-      assert (lower = target) by omega.
+      assert (lower = target) by lia.
       subst lower. simpl.
       now rewrite <- beq_nat_refl.
     + apply IH.
       apply leb_iff_conv in E.
-      omega.
+      lia.
 Qed.
 (* end hide *)
 
@@ -272,12 +272,12 @@ Proof.
   generalize dependent e.
   unfold optimal_range.
   induction d as [|d' IH]; intros e lower target BOUNDS; simpl.
-  - destruct e as [|e']; simpl in *; apply beq_nat_true_iff; omega.
+  - destruct e as [|e']; simpl in *; apply beq_nat_true_iff; lia.
   - destruct e as [|e']; simpl in *;
-    try (apply beq_nat_true_iff; omega).
+    try (apply beq_nat_true_iff; lia).
     destruct (leb target (lower + optimal_range_minus_1 e' d')) eqn:E.
-    + apply IH. apply leb_iff in E. omega.
-    + apply IH. apply leb_iff_conv in E. omega.
+    + apply IH. apply leb_iff in E. lia.
+    + apply IH. apply leb_iff_conv in E. lia.
 Qed.
 (* end hide *)
 
@@ -317,10 +317,10 @@ Lemma winning_inv_guess lower range floor :
 (* begin hide *)
 Proof.
   intros WIN.
-  destruct range as [|[|range]]; try omega.
-  assert (play lower (Guess floor) = true) by (apply WIN; omega).
-  assert (play (lower + 1) (Guess floor) = true) by (apply WIN; omega).
-  simpl in *. rewrite beq_nat_true_iff in *. omega.
+  destruct range as [|[|range]]; try lia.
+  assert (play lower (Guess floor) = true) by (apply WIN; lia).
+  assert (play (lower + 1) (Guess floor) = true) by (apply WIN; lia).
+  simpl in *. rewrite beq_nat_true_iff in *. lia.
 Qed.
 (* end hide *)
 
@@ -335,26 +335,26 @@ Proof.
   unfold winning. simpl. intros WIN.
   destruct (le_lt_dec (lower + range) floor) as [LE | LT].
   - eexists range, 0, 0.
-    split; try omega.
-    split; try solve [intros; omega].
+    split; try lia.
+    split; try solve [intros; lia].
     intros target I.
-    assert (BOUND : target <= floor) by omega.
+    assert (BOUND : target <= floor) by lia.
     apply WIN in I.
     rewrite <- leb_iff in BOUND. now rewrite BOUND in I.
   - destruct (le_lt_dec lower floor) as [LE' | LT'].
     + eexists (S floor - lower), (lower + range - S floor), (S floor).
-      split; try omega.
+      split; try lia.
       split; intros target I;
-      assert (I' : lower <= target < lower + range) by omega;
+      assert (I' : lower <= target < lower + range) by lia;
       apply WIN in I'.
-      * assert (BOUND : target <= floor) by omega.
+      * assert (BOUND : target <= floor) by lia.
         rewrite <- leb_iff in BOUND. now rewrite BOUND in I'.
-      * assert (BOUND : floor < target) by omega.
+      * assert (BOUND : floor < target) by lia.
         rewrite <- leb_iff_conv in BOUND. now rewrite BOUND in I'.
     + eexists 0, range, lower.
       split; trivial.
-      split; intros target I; try omega.
-      assert (BOUND : floor < target) by omega.
+      split; intros target I; try lia.
+      assert (BOUND : floor < target) by lia.
       apply WIN in I.
       rewrite <- leb_iff_conv in BOUND. now rewrite BOUND in I.
 Qed.

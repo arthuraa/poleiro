@@ -1,5 +1,5 @@
 (* begin hide *)
-From mathcomp Require Import ssreflect ssrfun ssrbool ssrnat eqtype seq.
+From mathcomp Require Import ssreflect ssrfun ssrbool ssrnat eqtype seq order.
 From mathcomp Require Import fintype bigop ssralg ssrnum ssrint.
 (* end hide *)
 (** Hillel Wayne posted a #<a
@@ -124,7 +124,7 @@ program ourselves, we can just reuse the [arg min] function available in Math
 Comp. *)
 
 Definition fulcrum_naive s :=
-  [arg minr_(i < ord0 : 'I_(size s).+1) `|fv s i|].
+  [arg min_(i < ord0 : 'I_(size s).+1) `|fv s i|]%O.
 
 Lemma fvE s i :
   fv s i = (\sum_(0 <= l < i) s`_l) *+ 2 - \sum_(0 <= l < size s) s`_l.
@@ -142,15 +142,15 @@ Lemma fv_overflow s i : fv s i = fv s (minn i (size s)).
 (* begin hide *)
 Proof.
 rewrite !fvE; congr (_ *+ 2 - _).
-case: (leqP i (size s))=> [/minn_idPl -> //|/ltnW s_i].
-rewrite (minn_idPr s_i) (big_nat_widen _ _ _ _ _ s_i) [RHS]big_mkcond /=.
+case: (leqP i (size s)) => [//|/ltnW s_i].
+rewrite (big_nat_widen _ _ _ _ _ s_i) [RHS]big_mkcond /=.
 by apply/eq_bigr=> l; case: ltnP=> //= ? _; rewrite nth_default.
 Qed.
 (* end hide*)
 
 Lemma fulcrum_naiveP s : is_fulcrum s (fulcrum_naive s).
 Proof.
-rewrite /fulcrum_naive; case: arg_minrP=> //= i _ iP j.
+rewrite /fulcrum_naive; case: Order.TotalTheory.arg_minP=> //= i _ iP j.
 move/(_ (inord (minn j (size s))) erefl): iP.
 rewrite (_ : fv s (inord _) = fv s j) //= [RHS]fv_overflow.
 by rewrite inordK ?ltnS ?geq_minr //.
@@ -236,10 +236,11 @@ rewrite (set_nth_default 0 a iP) {a}.
 have e: fv s i.+1 = s`_i *+ 2 + fv s i.
   by rewrite !fvE big_nat_recr //= [_ + s`_i]addrC mulrnDl addrA.
 split=> //=; do 1?[by case: ifP; rewrite // -ltnS ltnW].
-move=> j; case: ltngtP=> // [j_i|<-] _.
+move=> j; case: ltngtP => // [j_i|->] _.
   case: ifP=> [|_]; last exact: inv.
-  rewrite -e=> /ltrW {}iP; apply: ler_trans iP _; exact: inv.
-by case: ifP=> //; rewrite -e ltrNge => /negbFE ->.
+  rewrite -e => /Order.POrderTheory.ltW {}iP.
+  apply: Order.POrderTheory.le_trans iP _; exact: inv.
+by case: Order.TotalTheory.leP => //; rewrite -e.
 Qed.
 (* begin hide *)
 End Fulcrum.

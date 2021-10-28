@@ -1,5 +1,5 @@
 (* begin hide *)
-Require Import Omega.
+Require Import Lia.
 (* end hide *)
 (** Whenever a user doesn't name a variable in an Ltac script, Coq
 will automatically generate a fresh name for it. After doing some
@@ -72,10 +72,10 @@ Proof.
   match goal with
     | H : collatz _ _ |- _ => induction H
   end.
-  - omega.
+  - lia.
   - repeat match goal with
              | H : _ \/ _ |- _ => destruct H
-           end; omega.
+           end; lia.
   - match goal with
       | H1 : ?P,
         H2 : ?P -> ?Q,

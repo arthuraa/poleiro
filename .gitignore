@@ -1,7 +1,12 @@
+# Coq files
 *lia.cache
 *.glob
 *.vo
 *.v.d
+*.vok
+*.vos
+coqdoc.css
+
 _site
 _cache
 site
@@ -9,5 +14,4 @@ site
 *.o
 *.aux
 .sass-cache
-coqdoc.css
 deploy.config.sh
