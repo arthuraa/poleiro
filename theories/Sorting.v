@@ -141,10 +141,10 @@ move=> a_ok.
 apply/eqP; rewrite -subTset; apply/subsetP=> /= p _.
 move: {a_ok} (a_ok _ leq [tuple val (p^-1 i) | i < n]).
 rewrite (_ : sort _ _ = [tuple val i | i < n]); last first.
-  apply: (eq_sorted leq_trans anti_leq (sort_sorted leq_total _)).
+  apply: (sorted_eq leq_trans anti_leq (sort_sorted leq_total _)).
     by rewrite /= val_enum_ord iota_sorted.
   rewrite (perm_trans (introT permPl (perm_sort _ _))) //.
-  apply/tuple_perm_eqP; exists p^-1; congr val; apply/eq_from_tnth=> i.
+  apply/tuple_permP; exists p^-1; congr val; apply/eq_from_tnth=> i.
   by rewrite 3!tnth_map 2!tnth_ord_tuple.
 elim: a=> [/= i j l IHl r IHr|p'].
   by case: ifP=> [_ /IHl|_ /IHr]; rewrite in_setU => -> //; rewrite orbT.
