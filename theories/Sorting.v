@@ -172,19 +172,19 @@ by rewrite expnS mul2n -addnn leq_add // ?(leq_trans IHl, leq_trans IHr) //
 Qed.
 
 (** Doing the last step is a bit trickier, as we don't have a proof of
-Stirling's approximation we can use. Instead, we take a more direct
-route, showing the following lemma by induction on [n] ([trunc_log],
-as its name implies, is the truncated logarithm): *)
+Stirling's approximation. Instead, we take a more direct route, showing the
+following lemma by induction ([trunc_log], as its name implies, is the truncated
+logarithm): *)
 
 Local Notation log2 := (trunc_log 2).
 
 Lemma log2_fact n : (n * log2 n)./2 <= log2 n`!.
 Proof.
-(** In order to get our proof to go through, we must strengthen our
-induction hypothesis a little bit: *)
+(** To get our proof to go through, we must strengthen our induction hypothesis
+a little bit: *)
 suff: n * (log2 n).+2 <= (log2 n`! + 2 ^ (log2 n)).*2.+1.
   (* begin hide *)
-  move: (leq0n n); rewrite leq_eqVlt=> /orP [/eqP <- //|pos].
+  have [lb|] := boolP (0 < n); last by case: n.
   move/half_leq; rewrite -(addn1 _.*2) halfD odd_double add0n addn0 doubleK.
   rewrite -addn2 mulnDr muln2 halfD odd_double andbF doubleK add0n.
   rewrite (addnC (log2 _)) -leq_subLR -addnBA ?trunc_logP //.
@@ -195,22 +195,24 @@ completlely trivial) inductive argument. *)
 elim: n=> [|n IH] //=.
 (* ... *)
 (* begin hide *)
-have [lb|] := boolP (3 <= n); last by case: n IH => [|[|[|[|]]]] //=.
-have: log2 n.+1 = log2 n \/ log2 n.+1 = (log2 n).+1 /\ 2 ^ (log2 n.+1) = n.+1.
-  move: (@trunc_log_bounds 2 _ erefl (@leq_trans 3 1 n erefl lb))
-        (@trunc_log_bounds 2 _ erefl (@leq_trans 4 1 n.+1 erefl lb))
-        => /andP [e1 e2] /andP [e3 e4].
-  move: (leq_trans e3 e2); rewrite leq_exp2l leq_eqVlt //.
-  case/orP=> [/eqP e5|].
+have [n_gt2|] := boolP (2 < n); last by move: (n); do ?[case=> //].
+set a := log2 n in IH *; set b := log2 n.+1 in IH *.
+have b_gt1 : 1 < b by rewrite trunc_log_max.
+have lb : b + log2 n`! <= log2 (n.+1)`!.
+  by rewrite trunc_log_max // factS expnD leq_mul // trunc_logP // fact_gt0.
+have: b = a \/ b = a.+1 /\ 2 ^ b = n.+1.
+  have/andP [e1 e2] : 2 ^ a <= n < 2 ^ a.+1.
+    by apply: trunc_log_bounds; rewrite // (leq_trans _ n_gt2).
+  have/andP [e3 e4] : 2 ^ b <= n.+1 < 2 ^ b.+1.
+    exact: trunc_log_bounds.
+  have: 2 ^ b <= 2 ^ a.+1 by rewrite (leq_trans e3).
+  rewrite leq_exp2l leq_eqVlt //; case/orP=> [/eqP e5|].
     by right; split=> //; apply/eqP; rewrite eqn_leq e3 e5.
   rewrite ltnS leq_eqVlt=> /orP [/eqP ?|e5]; left=> //.
   rewrite -(@leq_exp2l 2) // in e5.
   by move: (leq_trans e4 (leq_trans e5 e1)); rewrite ltnNge leqnSn.
-have lb1: 2 <= log2 n.+1 by rewrite trunc_log_max //.
-have lb2: log2 n.+1 + log2 n`! <= log2 (n.+1)`!.
-  by rewrite trunc_log_max // factS expnD leq_mul // trunc_logP // fact_gt0.
 case=> [e|[e1 e2]].
-  have lb3: (log2 n).+2 <= (log2 n).*2 by rewrite -addnn -addn2 leq_add2l -e.
+  have lb3: a.+2 <= a.*2 by rewrite -addnn -addn2 leq_add2l -e.
   rewrite e mulSn (leq_trans (leq_add lb3 IH)) // addnS -doubleD ltnS.
   by rewrite leq_double addnA leq_add2r -e.
 rewrite e1 mulSn mulnS (addnC n) addnA (addnC _.+3) -addnA.
@@ -218,7 +220,7 @@ rewrite (leq_trans (leq_add IH (leqnn _))) // -e1 e2 doubleD.
 rewrite -[(2 ^ _).*2]muln2 mulnC -expnS -e1 e2 addSn ltnS.
 rewrite -addnA (addnA _.+1) (addnC _.+1) 2!addnA -addnA doubleD leq_add //.
   rewrite -(addn2 (log2 _)) addnA.
-  rewrite (leq_trans (leq_add (leqnn _) lb1)) // -addnA addnn -doubleD.
+  rewrite (leq_trans (leq_add (leqnn _) b_gt1)) // -addnA addnn -doubleD.
   by rewrite addnC leq_double.
 by rewrite -addnn leq_add2l.
 (* end hide *)
