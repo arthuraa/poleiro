@@ -27,8 +27,11 @@
 
           ghc = pkgs.haskellPackages.ghcWithPackages (ps: [ ps.hakyll ]);
 
+          # The pinned sass/compass gems still call File.exists?, which was
+          # removed in Ruby 3.2, so build them against Ruby 3.1.
           gems = pkgs.bundlerEnv {
             name = "compass";
+            ruby = pkgs.ruby_3_1;
             gemdir = ./.;
           };
         in
